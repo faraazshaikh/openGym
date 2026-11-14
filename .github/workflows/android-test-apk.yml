@@ -1,7 +1,8 @@
 # A debug APK you can install on your own Android phone, built from this fork.
 #
-# Run it by hand: Actions tab -> "Android test APK" -> Run workflow, pick a branch, then download
-# the `opengym-test-apk` artifact from the finished run and unzip it.
+# Run it by hand: Actions tab -> "Android test APK" -> Run workflow. The finished APK is published
+# as the "Test APK" prerelease on the Releases page (tap openGym-test.apk to download it). The same
+# file is also kept for 14 days as the `opengym-test-apk` artifact (a zip, needs a GitHub sign-in).
 #
 # This is a debug build for personal testing, not a release. It installs next to the real app
 # (its own app id, ch.duartesantos.opengym.test) and is signed with a throwaway debug key, so it
@@ -17,7 +18,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # to publish the APK as a release, a link a phone can download directly
 
 jobs:
   apk:
@@ -56,3 +57,11 @@ jobs:
           path: out/openGym-test.apk
           retention-days: 14
           if-no-files-found: error
+      - name: Publish as a prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete test-latest --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create test-latest out/openGym-test.apk --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --prerelease --title "Test APK" \
+            --notes "Debug build of ${GITHUB_SHA::7} for personal testing. Installs next to the real app as ch.duartesantos.opengym.test."
