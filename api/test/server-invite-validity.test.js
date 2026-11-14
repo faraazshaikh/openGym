@@ -153,3 +153,13 @@ test('the validity route: months extend from what is left, null is indefinite, t
   assert.equal((await h.call('POST', '/api/admin/user/validity', { id: 'nobody', months: 1 }, asAdmin)).status, 404);
   assert.equal((await h.call('POST', '/api/admin/user/validity', { id: lee.id, months: 1 })).status, 401, 'admin only');
 });
+
+test('the signed-in user carries expiresAt, for the app to warn before it comes', async t => {
+  const SAM = 'u_sam_x', END = new Date(Date.now() + 5 * 86400000).toISOString();
+  const h = await startServer(t, [{ id: SAM, name: 'Sam', created: '2026-01-01T00:00:00.000Z', expiresAt: END }]);
+  const sam = await h.call('GET', '/api/me', undefined, { Cookie: `gymsid=${mint(SAM)}` });
+  assert.equal(sam.status, 200);
+  assert.equal(sam.body.user.expiresAt, END);
+  const boss = await h.call('GET', '/api/me', undefined, asAdmin);
+  assert.equal('expiresAt' in boss.body.user, false, 'an account without an end date says nothing');
+});

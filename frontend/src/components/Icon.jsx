@@ -19,6 +19,7 @@ const P = {
   house: <path d="M3.5 10.7 12 3.8l8.5 6.9M5.9 9.4V19a1.4 1.4 0 0 0 1.4 1.4h9.4A1.4 1.4 0 0 0 18.1 19V9.4" />,
   calendar: <><rect x="3.4" y="5.2" width="17.2" height="15.4" rx="3.2" /><path d="M8.2 3.4v3.4M15.8 3.4v3.4M3.4 10.2h17.2" /></>,
   chart: <path d="M4.5 20.2V13M9.5 20.2V6.4M14.5 20.2v-5.1M19.5 20.2V9.6" />,
+  bell: <><path d="M6 8.5a6 6 0 0 1 12 0c0 6.5 2.6 8.3 2.6 8.3H3.4S6 15 6 8.5" /><path d="M10.2 20.6a2 2 0 0 0 3.6 0" /></>,
   magnifier: <><circle cx="11" cy="11" r="7" /><path d="m20.5 20.5-4.4-4.4" /></>,
   // A real cog outline (8 teeth, generated on a circle) — an earlier version drew
   // radial rays and was indistinguishable from `sun` at tab-bar size.

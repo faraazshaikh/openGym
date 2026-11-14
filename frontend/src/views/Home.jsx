@@ -32,6 +32,7 @@ import { ChallengesCard } from '../components/Challenges.jsx'
 import { isOn } from '../lib/modules.js'
 import HomeToday from '../components/HomeToday.jsx'
 import Elapsed from '../components/Elapsed.jsx'
+import NotificationBell from '../components/NotificationBell.jsx'
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
@@ -144,6 +145,7 @@ export default function Home() {
       <SeasonDeco spot="header-bats" />
       <div><h1>{user ? t('Hi {0}', user.name) : 'Fitrix'}</h1><div className="sub">{today.toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}</div></div>
       <div className="hdr-actions">
+        <NotificationBell />
         <button className="iconbtn" data-tour="settings-gear" onClick={() => nav('/settings')} aria-label={trouble ? t('Settings') + ', ' + t('Connection problem') : t('Settings')}><Icon name="gear" />{trouble && <span className="tab-dot" aria-hidden="true" />}</button>
         <button className="iconbtn" data-tour="theme-bulb" onClick={flipTheme} aria-label={t('Switch between light and dark')}><Icon name="lightbulb" /></button>
       </div>

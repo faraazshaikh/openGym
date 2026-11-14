@@ -4,6 +4,13 @@ Newest first. Each release is a `## vX.Y.Z (YYYY-MM-DD)` section, and the releas
 GitHub and GitLab are that section, word for word. New work goes under `## Unreleased` until the
 tag. Write it for the people using the app: what changed for them, short, no em dashes.
 
+## v1.4.7 (2026-11-14)
+
+**A bell on Home.** The bell next to Settings shows a dot when there is something to read. Today it
+tells you when a newer version of the app is ready, with a Download button that goes straight to
+it, and it warns you in the last two weeks before your access ends. More notices will use the same
+bell.
+
 ## v1.4.6 (2026-11-14)
 
 **Invite codes with a name, an email and a time limit.** In the Admin dashboard, New code now asks
