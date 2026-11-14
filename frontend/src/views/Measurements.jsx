@@ -6,7 +6,7 @@ import DateField from '../components/DateField.jsx'
 import {
   MEASUREMENT_FIELDS, MEASUREMENT_KEYS, emptyMeasurement, enabledMeasurementFields,
   fromMeasurementDisplay, latestMeasurement, measurementEntryHasValues,
-  measurementSeries, measurementUnit, measurementValue, normalizeMeasurementEntry,
+  lengthKey, measurementSeries, measurementUnit, measurementValue, normalizeMeasurementEntry,
   toMeasurementDisplay, normalizeMeasurementsState, CUSTOM_MEASUREMENT_UNITS, customMeasurementUnits,
   measurementUnitLabel, zeroIsReading,
 } from '../lib/measurements.js'
@@ -14,7 +14,8 @@ import { fmtDate, fmtNum, todayISO, uid } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import LineChart from '../components/LineChart.jsx'
 import Icon from '../components/Icon.jsx'
-import { Button, NumberField, Section, Segmented, SelectRow, Switch, TextField } from '../components/ui.jsx'
+import { Button, NumberField, Row, Section, Segmented, SelectRow, Switch, TextField } from '../components/ui.jsx'
+import { bmrSheet, bodyFatSheet } from '../components/BodyCalc.jsx'
 import { confirmSheet } from '../sheets.jsx'
 
 // Every write leaves the list in its one-entry-per-day shape (normalizeMeasurementsState).
@@ -48,7 +49,7 @@ function MeasurementLog({ sourceDate, close }) {
     }
   }
   const [date, setDate] = useState(source?.d || todayISO())
-  const [values, setValues] = useState(() => Object.fromEntries(fields.map(f => [f.key, shownValue(source, f, S.unit)])))
+  const [values, setValues] = useState(() => Object.fromEntries(fields.map(f => [f.key, shownValue(source, f, lengthKey(S))])))
 
   const save = () => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > todayISO()) { toast(t('Choose a valid date')); return }
@@ -60,7 +61,7 @@ function MeasurementLog({ sourceDate, close }) {
     base.t = source && date === source.d ? source.t : (date === todayISO() ? Date.now() : new Date(date + 'T12:00:00').getTime())
     for (const field of fields) {
       const raw = values[field.key]
-      const shown = measurementUnit(S.unit, field)
+      const shown = measurementUnit(lengthKey(S), field)
       const percent = shown === '%'
       const value = raw == null || (raw === 0 && !zeroIsReading(shown)) ? null : Math.round(+raw * 10) / 10
       if (percent && value != null && (value < 0 || value > 100)) {
@@ -69,11 +70,11 @@ function MeasurementLog({ sourceDate, close }) {
       if (field.custom) {
         const item = base.other.find(o => o.id === field.key.slice(6))
         if (item) {
-          item.value = fromMeasurementDisplay(value, S.unit, field)
+          item.value = fromMeasurementDisplay(value, lengthKey(S), field)
           if (field.unit) item.unit = field.unit
         }
       } else if (field.key === 'bodyFat') base.bodyFat = value
-      else base[field.key] = value == null ? null : fromMeasurementDisplay(value, S.unit)
+      else base[field.key] = value == null ? null : fromMeasurementDisplay(value, lengthKey(S))
     }
     if (!measurementEntryHasValues(base)) { toast(t('Enter at least one measurement')); return }
     // `t` is when the check-in was last saved: the newer one of a day wins a sync merge, the
@@ -99,7 +100,7 @@ function MeasurementLog({ sourceDate, close }) {
         <span>{t(field.label)}</span>
         <span className="measure-input">
           <NumberField nullable value={values[field.key]} onChange={value => setValues(v => ({ ...v, [field.key]: value }))} />
-          <i>{fieldUnit(field, S.unit)}</i>
+          <i>{fieldUnit(field, lengthKey(S))}</i>
         </span>
       </label>)}
     </div> : <div className="empty small">{t('Choose at least one measurement first.')}</div>}
@@ -117,7 +118,7 @@ export function measurementLogSheet(sourceDate = null) {
 function ManageMeasurements({ close }) {
   const S = useStore(s => s.S)
   const [name, setName] = useState('')
-  const [unit, setUnit] = useState(() => measurementUnit(S.unit))
+  const [unit, setUnit] = useState(() => measurementUnit(lengthKey(S)))
   const groups = [...new Set(MEASUREMENT_FIELDS.map(f => f.group))]
   const toggleBuiltin = (key, on) => update(state => {
     const set = new Set(state.measurementEnabled || [])
@@ -155,7 +156,7 @@ function ManageMeasurements({ close }) {
           <span className="lrow-m"><span className="lrow-t">{field.name}</span><span className="lrow-s">{t('Custom')}</span></span>
           <Switch checked={field.enabled !== false} onChange={on => toggleCustom(field.id, on)} />
         </div>
-        <SelectRow title={t('Measurement unit')} value={measurementUnit(S.unit, field)}
+        <SelectRow title={t('Measurement unit')} value={measurementUnit(lengthKey(S), field)}
           options={unitOptions(customMeasurementUnits(field, S.measurements))}
           onChange={value => setCustomUnit(field.id, value)} />
       </div>)}
@@ -199,7 +200,7 @@ export default function Measurements() {
   const key = available.some(f => f.key === selected) ? selected : fallback
   const field = available.find(f => f.key === key)
   const points = key ? measurementSeries(S, key, range) : []
-  const unit = fieldUnit(field, S.unit)
+  const unit = fieldUnit(field, lengthKey(S))
   const all = key ? measurementSeries(S, key) : []
   const latest = all.at(-1)
   const previous = all.at(-2)
@@ -243,13 +244,20 @@ export default function Measurements() {
       <div style={{ height: 10 }} /><Button onClick={manageMeasurementsSheet}>{t('Choose measurements')}</Button>
     </div>}
 
+    <Section title={t('Calculators')}>
+      <Row icon="ruler" iconTint="var(--teal)" title={t('Body fat calculator')} subtitle={t('From waist, neck and height')}
+        accessory="chevron" onClick={() => bodyFatSheet()} />
+      <Row icon="flame" iconTint="var(--teal)" title={t('BMR calculator')} subtitle={t('Resting energy and daily calories')}
+        accessory="chevron" onClick={() => bmrSheet()} />
+    </Section>
+
     <div className="row between" style={{ margin: '18px 2px 10px' }}>
       <h4 className="sec" style={{ margin: 0 }}>{t('Measurement history')}</h4>
       <Button size="sm" variant="ghost" icon="gear" onClick={manageMeasurementsSheet}>{t('Fields')}</Button>
     </div>
     {recent.length ? <div className="list">{recent.map(entry => {
       const count = MEASUREMENT_KEYS.filter(k => entry[k] != null).length + (entry.other || []).filter(o => o.value != null).length
-      const previewFields = enabledMeasurementFields(S).map(f => ({ field: f, value: shownValue(entry, f, S.unit) })).filter(x => x.value != null).slice(0, 3)
+      const previewFields = enabledMeasurementFields(S).map(f => ({ field: f, value: shownValue(entry, f, lengthKey(S)) })).filter(x => x.value != null).slice(0, 3)
       return <div className="card measure-history" key={entry.d}>
         <div className="row between">
           <div><b>{fmtDate(entry.d, true)}</b><div className="small dim" style={{ marginTop: 2 }}>{t(count === 1 ? '{0} measurement' : '{0} measurements', count)}</div></div>
@@ -258,7 +266,7 @@ export default function Measurements() {
             <button className="iconbtn" style={{ color: 'var(--red)' }} onClick={() => remove(entry)} aria-label={t('Delete')}><Icon name="trash" /></button>
           </div>
         </div>
-        {previewFields.length > 0 && <div className="measure-preview">{previewFields.map(({ field: f, value }) => <span key={f.key}>{t(f.label)} <b>{withUnit(value, fieldUnit(f, S.unit))}</b></span>)}</div>}
+        {previewFields.length > 0 && <div className="measure-preview">{previewFields.map(({ field: f, value }) => <span key={f.key}>{t(f.label)} <b>{withUnit(value, fieldUnit(f, lengthKey(S)))}</b></span>)}</div>}
       </div>
     })}</div> : <div className="empty small">{t('No measurements yet')}</div>}
   </div>

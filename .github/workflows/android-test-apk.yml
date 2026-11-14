@@ -1,0 +1,58 @@
+# A debug APK you can install on your own Android phone, built from this fork.
+#
+# Run it by hand: Actions tab -> "Android test APK" -> Run workflow, pick a branch, then download
+# the `opengym-test-apk` artifact from the finished run and unzip it.
+#
+# This is a debug build for personal testing, not a release. It installs next to the real app
+# (its own app id, ch.duartesantos.opengym.test) and is signed with a throwaway debug key, so it
+# cannot update the store or GitHub release app, and a new run may need the old test app
+# uninstalled first if the debug key differs between runs. Real releases are built and signed on
+# the maintainer's machine (scripts/android/build-release.sh), never here.
+#
+# Exercise media: only the repository's 180 px files go in (the Standard size), as the media
+# licence requires.
+name: Android test APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: frontend
+      - name: Phone bundle + cap sync
+        run: npm run build:mobile
+        working-directory: frontend
+      - name: JVM unit tests and debug APK
+        working-directory: frontend/android
+        run: ./gradlew --no-daemon testSideloadDebugUnitTest assembleSideloadDebug
+      - name: Name the APK
+        run: |
+          mkdir -p out
+          cp frontend/android/app/build/outputs/apk/sideload/debug/*.apk out/openGym-test.apk
+          ls -lh out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opengym-test-apk
+          path: out/openGym-test.apk
+          retention-days: 14
+          if-no-files-found: error

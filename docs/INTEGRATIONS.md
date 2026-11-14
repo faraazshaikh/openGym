@@ -32,6 +32,27 @@ on iPhone or Health Connect on Android, and openGym reads from there:
 Make sure the watch or scale app is allowed to write heart rate or weight to the phone's health
 store. What openGym writes goes to the health store, not back into the watch's own app.
 
+## Steps, sleep and resting heart rate (Android)
+
+Settings → Integrations → Health Connect has a third read switch, *Steps, sleep and resting heart
+rate*. It is off by default and asks for four Health Connect read permissions only when turned
+on (one is enough; the others simply read nothing). Mi Fitness, Zepp, Google Fit and any other app
+that saves to Health Connect works. In Mi Fitness, turn on Health Connect in its settings first.
+
+The month's averages show above the calendar. The numbers stay on this phone, in the same file as
+the other Health Connect settings: they do not sync to a server or ride in a backup, and switching
+the read off clears them. openGym reads only while it is open, 30 days back the first time.
+
+- A day is the phone's local day. Two apps that save the same steps are not added together: the day
+  uses the app with the most.
+- Sleep belongs to the day you wake up and counts time asleep only (awake time in bed is left out).
+- Resting heart rate is the day's last reading from the app with the most readings. Mi Fitness
+  saves heart rate but often no resting value, so when none is saved for a day, openGym works one
+  out from that day's heart rate readings (the lowest 5 percent, at least 20 readings needed). Such
+  a day is an estimate, and the month's average shows a `~` in front of it. That needs the heart
+  rate read permission too, which the same switch asks for.
+- Android only; the iPhone app does not offer it.
+
 ## Webhooks
 
 A webhook is a URL your other tool gives you. openGym's server sends it an HTTPS `POST` with a

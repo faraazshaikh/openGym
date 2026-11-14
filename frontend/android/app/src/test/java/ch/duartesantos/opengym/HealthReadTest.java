@@ -72,4 +72,16 @@ public class HealthReadTest {
         assertEquals("android.permission.health.WRITE_EXERCISE", HealthRead.writePermission("exercise"));
         assertNull(HealthRead.readPermission("steps"));
     }
+
+    @Test
+    public void dailyReadsHaveTheirOwnPermissionsAndOriginNumbers() {
+        assertEquals("android.permission.health.READ_STEPS", HealthRead.readPermission("steps"));
+        assertEquals("android.permission.health.READ_SLEEP", HealthRead.readPermission("sleep"));
+        assertEquals("android.permission.health.READ_RESTING_HEART_RATE", HealthRead.readPermission("restingHeartRate"));
+        java.util.ArrayList<String> origins = new java.util.ArrayList<>();
+        assertEquals(0, HealthRead.originIndex(origins, "com.xiaomi.wearable"));
+        assertEquals(1, HealthRead.originIndex(origins, "com.google.android.apps.fitness"));
+        assertEquals(0, HealthRead.originIndex(origins, "com.xiaomi.wearable"));
+        assertEquals(2, origins.size());
+    }
 }

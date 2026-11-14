@@ -41,6 +41,10 @@ export const measurementUnitLabel = unit => unit === 'none' ? '' : unit
 // A unit where 0 is a reading, not an empty field: 0 % or a score of 0.
 export const zeroIsReading = unit => unit === '%' || unit === 'none'
 
+// The unit key the length helpers below take ('lb' reads inches, anything else cm). It follows the
+// weight unit unless the profile picked its own tape-measure unit (Settings → Units), so a lifter
+// who weighs in kg can still measure a waist in inches.
+export const lengthKey = state => state?.lengthUnit === 'in' ? 'lb' : state?.lengthUnit === 'cm' ? 'kg' : (state?.unit || 'kg')
 export const measurementUnit = (unit, field) => field?.key === 'bodyFat' ? '%' : unitOf(field) || (unit === 'lb' ? 'in' : 'cm')
 export const toMeasurementDisplay = (value, unit, field) => {
   if (value == null) return null
@@ -154,7 +158,7 @@ export function enabledMeasurementFields(state) {
 
 export function measurementSeries(state, key, range = 0, now = Date.now()) {
   const cutoff = range ? now - range * 86400000 : -Infinity
-  const unit = state.unit || 'kg'
+  const unit = lengthKey(state)
   const field = key.startsWith('other:')
     ? (state.customMeasurements || []).find(c => c.id === key.slice(6)) || { key }
     : { key }
@@ -201,3 +205,21 @@ export const fromCsvUnit = (v, unit) => unit === 'in' ? v * 2.54 : unit === 'lb'
 export const sameMeasurementKind = (a, b) => unitKind(unitOf({ unit: a })) === unitKind(unitOf({ unit: b }))
 // A custom reading as the field shows it: in the field's unit, or cm for a legacy field.
 export const customDisplayValue = (value, unit) => unitOf({ unit }) ? toMeasurementDisplay(value, 'kg', { unit }) : value
+
+/**
+ * Puts a body fat reading on `day`'s check-in (from the body fat calculator), keeping whatever else
+ * that day already holds. Mutates `state` the way the log sheet does and leaves the list in its
+ * one-entry-per-day shape. Returns false, and changes nothing, for a number that is not 0 to 100.
+ */
+export function logBodyFat(state, pct, day, now = Date.now()) {
+  const value = valid(pct, '%')
+  if (value == null || !/^\d{4}-\d{2}-\d{2}$/.test(day || '')) return false
+  const entries = Array.isArray(state.measurements) ? state.measurements : []
+  const existing = entries.find(e => e.d === day)
+  const entry = existing ? normalizeMeasurementEntry(existing, state.customMeasurements) : emptyMeasurement(day, state.customMeasurements)
+  entry.bodyFat = value
+  entry.t = now
+  state.measurements = [...entries.filter(e => e.d !== day), entry]
+  normalizeMeasurementsState(state)
+  return true
+}

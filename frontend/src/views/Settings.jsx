@@ -877,6 +877,12 @@ export default function Settings({ page = null, find = null, via = null, entryKe
             options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]}
             value={S.unit} onChange={v => switchUnit(v)} />
         </Row>
+        <Row icon="ruler" iconTint="var(--teal)" title={t('Body measurement unit')}
+          subtitle={t('Waist, neck, chest and the other tape measures. Weight keeps its own unit.')}>
+          <Segmented className="seg-inline"
+            options={[{ value: 'cm', label: 'cm' }, { value: 'in', label: 'in' }]}
+            value={S.lengthUnit || (S.unit === 'lb' ? 'in' : 'cm')} onChange={v => update(s => { s.lengthUnit = v })} />
+        </Row>
         {/* Display only: one decimal reads fine for plate-loadable numbers, two for anyone whose
             per-side figure lands on .25 or .75, or who loads microplates (issue #139). Nothing is
             stored or rounded differently; lib/format.js fmtNum just prints what is already there. */}
@@ -1940,7 +1946,7 @@ function HealthConnectCard({ S, toast, android, page = false }) {
     } catch { toast(c.failed) }
     setBusy(false)
   }
-  const reading = h.readHr || h.readWeight
+  const reading = h.readHr || h.readWeight || h.readDaily
 
   // Off can mean two things for what is already there, so it asks; closing the sheet keeps it on.
   const askOff = () => menuSheet({
@@ -1954,7 +1960,7 @@ function HealthConnectCard({ S, toast, android, page = false }) {
 
   return (
     <Section title={c.section} tour="data-health"
-      footer={[h.on && c.footer, h.on && ios && airpods && t('AirPods Pro 3 or Powerbeats Pro 2 in? Your iPhone measures the heart rate for every set, unless your Apple Watch is already on it.'), reading && (h.readWeight && h.wHistory ? t('openGym reads only while it is open: heart rate for workouts of the last day, weigh-ins of the last year. Older workouts stay as they are.') : t('openGym reads only while it is open: heart rate for workouts of the last day, weigh-ins of the last 30 days. Older workouts stay as they are.'))].filter(Boolean).join(' ') || null}>
+      footer={[h.on && c.footer, h.on && ios && airpods && t('AirPods Pro 3 or Powerbeats Pro 2 in? Your iPhone measures the heart rate for every set, unless your Apple Watch is already on it.'), (h.readHr || h.readWeight) && (h.readWeight && h.wHistory ? t('openGym reads only while it is open: heart rate for workouts of the last day, weigh-ins of the last year. Older workouts stay as they are.') : t('openGym reads only while it is open: heart rate for workouts of the last day, weigh-ins of the last 30 days. Older workouts stay as they are.'))].filter(Boolean).join(' ') || null}>
       <Row icon="heart" iconTint="var(--red)" title={c.write}
         subtitle={t('Finished workouts and weigh-ins, from this phone only.')}>
         <Switch checked={!!h.on} disabled={busy} onChange={v => (v ? turnOn() : askOff())} />
@@ -1969,9 +1975,13 @@ function HealthConnectCard({ S, toast, android, page = false }) {
         subtitle={t('Your smart scale’s weigh-ins land here. One you type in yourself always wins.')}>
         <Switch checked={!!h.readWeight} disabled={busy} onChange={toggleRead('weight')} />
       </Row>
+      {!ios && <Row icon="steps" iconTint="var(--green)" title={t('Steps, sleep and resting heart rate')}
+        subtitle={t('Mi Fitness, Zepp, Google Fit and others save these on your phone. Shown in the calendar, on this phone only.')}>
+        <Switch checked={!!h.readDaily} disabled={busy} onChange={toggleRead('daily')} />
+      </Row>}
       {reading && h.readError === 'permission' && <Row icon="warning" iconTint="var(--orange)"
         title={t('Permission withdrawn. Tap to allow again')} accessory="chevron"
-        onClick={() => toggleRead(h.readHr ? 'hr' : 'weight')(true)} />}
+        onClick={() => toggleRead(h.readHr ? 'hr' : h.readWeight ? 'weight' : 'daily')(true)} />}
       {(h.on || reading) && <Row icon="list" iconTint="var(--blue)" title={c.open}
         accessory="chevron" onClick={() => openHealthConnect().catch(() => {})} />}
     </Section>

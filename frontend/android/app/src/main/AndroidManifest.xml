@@ -354,6 +354,11 @@
     <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <!-- The daily numbers (steps, sleep, resting heart rate) other apps such as Mi Fitness save
+         there, shown in the calendar. Asked for only when that switch is turned on. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
 
     <!-- Gym reminder (#614), off until switched on in Settings: where the phone is, for "I'm at

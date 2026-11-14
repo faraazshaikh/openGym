@@ -22,10 +22,10 @@ const mocks = vi.hoisted(() => {
   state.readGrant = true
   state.enableRead = vi.fn(async kind => {
     if (!state.readGrant) return { ok: false, reason: 'denied' }
-    state.health = { ...state.health, [kind === 'hr' ? 'readHr' : 'readWeight']: true }
+    state.health = { ...state.health, [{ hr: 'readHr', weight: 'readWeight', daily: 'readDaily' }[kind]]: true }
     return { ok: true, health: state.health }
   })
-  state.disableRead = vi.fn(async kind => { state.health = { ...state.health, [kind === 'hr' ? 'readHr' : 'readWeight']: false }; return state.health })
+  state.disableRead = vi.fn(async kind => { state.health = { ...state.health, [{ hr: 'readHr', weight: 'readWeight', daily: 'readDaily' }[kind]]: false }; return state.health })
   state.menuSheet = vi.fn()
   state.toast = vi.fn()
   return state
@@ -220,5 +220,37 @@ describe('Settings — reading back', () => {
     await act(async () => { sw('Weigh-ins from other apps').click() })
     expect(mocks.disableRead).toHaveBeenCalledWith('weight')
     expect(mocks.menuSheet).not.toHaveBeenCalled()
+  })
+})
+
+// The daily numbers (steps, sleep, resting heart rate): Android only, its own switch, off by default.
+describe('Settings — daily numbers', () => {
+  const sw = text => row(text)?.querySelector('[role="switch"]')
+  const TITLE = 'Steps, sleep and resting heart rate'
+
+  it('is offered on Android, off, independent of the other switches', async () => {
+    await mount()
+    expect(sw(TITLE).getAttribute('aria-checked')).toBe('false')
+    await act(async () => { sw(TITLE).click() })
+    expect(mocks.enableRead).toHaveBeenCalledWith('daily', expect.any(Function))
+    expect(sw(TITLE).getAttribute('aria-checked')).toBe('true')
+    expect(sw('Heart rate from your watch').getAttribute('aria-checked')).toBe('false')
+    expect(writeSwitch().getAttribute('aria-checked')).toBe('false')
+    expect(row('Open Health Connect')).toBeTruthy()
+  })
+
+  it('turns off without asking', async () => {
+    mocks.health = { on: false, written: {}, error: null, readDaily: true }
+    await mount()
+    await act(async () => { sw(TITLE).click() })
+    expect(mocks.disableRead).toHaveBeenCalledWith('daily')
+    expect(mocks.menuSheet).not.toHaveBeenCalled()
+  })
+
+  it('is not there on the iPhone', async () => {
+    mocks.android = false
+    mocks.status = { status: 'available', granted: false, platform: 'ios' }
+    await mount()
+    expect(row(TITLE)).toBeFalsy()
   })
 })

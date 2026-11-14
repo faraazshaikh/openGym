@@ -17,8 +17,14 @@
 // the workouts of the last day and the weigh-ins since the last read (30 days the first time), so
 // no background or history permission is asked for. What it decides is in lib/health-read.js.
 //
+// A third read, Android only: the daily numbers other apps save there (steps, sleep, resting heart
+// rate: Mi Fitness, Zepp, Google Fit...), for the calendar. Kept in this file as `daily`, one entry
+// per day and never in the log, so it does not sync; switching it off clears it. lib/health-daily.js.
+//
 // The web build never gets here (MOBILE is a build-time flag).
 import { mergeHeartRate, mergeWeighIns, lacksHeartRate } from './health-read.js'
+import { dailyFromHub, firstFullDay, readSince, mergeDaily } from './health-daily.js'
+import { isoOf } from './format.js'
 import { MOBILE, nativePlatform, readJsonFile, writeJsonFile } from './mobile.js'
 import { healthRecords, planSync, writtenIds, goneIds } from './health-connect.js'
 import { isOn } from './modules.js'
@@ -27,7 +33,7 @@ import { EXIDX } from './exercises.js'
 import { speedUnitOf } from './speed.js'
 
 export const HEALTH_FILE = 'opengym-health.json'
-const OFF = { on: false, written: {}, at: 0, error: null, readHr: false, readWeight: false, wHistory: false, wCursor: 0, seen: {}, hrTried: {}, readError: null }
+const OFF = { on: false, written: {}, at: 0, error: null, readHr: false, readWeight: false, wHistory: false, wCursor: 0, seen: {}, hrTried: {}, readError: null, readDaily: false, daily: {} }
 
 // Wrapped in an object, as in rest-alert.js: a Capacitor plugin proxy answers `then`, so a
 // promise resolved with the bare proxy never settles.
@@ -52,7 +58,7 @@ export async function loadHealth() {
   if (cached) return cached
   const f = await readJsonFile(HEALTH_FILE)
   const map = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {})
-  cached = f && typeof f === 'object' ? { ...OFF, ...f, written: map(f.written), seen: map(f.seen), hrTried: map(f.hrTried) } : { ...OFF }
+  cached = f && typeof f === 'object' ? { ...OFF, ...f, written: map(f.written), seen: map(f.seen), hrTried: map(f.hrTried), daily: map(f.daily) } : { ...OFF }
   return cached
 }
 const saveHealth = h => { cached = h; return writeJsonFile(HEALTH_FILE, h) }
@@ -237,6 +243,12 @@ export const WEIGHT_FIRST_MS = 30 * 24 * 3600e3
 export const WEIGHT_HISTORY_MS = 365 * 24 * 3600e3
 const WEIGHT_MARGIN_MS = 2 * 24 * 3600e3
 const SEEN_KEEP_MS = 60 * 24 * 3600e3
+// The daily numbers: the first read goes 30 days back (what Health Connect gives without the history
+// permission), later ones from the day before the newest kept, so the days still filling in are recounted.
+export const DAILY_FIRST_DAYS = 30
+// Heart rate too: where no app saves a resting value, it is estimated from the day's readings.
+const DAILY_PERMS = ['steps', 'sleep', 'restingHeartRate', 'heartRate']
+const READ_FLAG = { hr: 'readHr', weight: 'readWeight', daily: 'readDaily' }
 
 const srcOf = platform => (platform === 'ios' ? 'ah' : 'hc')
 
@@ -245,6 +257,7 @@ const srcOf = platform => (platform === 'ios' ? 'ah' : 'hc')
 let applyRef = null
 let readRunning = null
 let lastWeightRead = 0
+let lastDailyRead = 0
 
 /**
  * Turns one of the two reads on (`kind`: 'hr' | 'weight'): asks for that read permission only,
@@ -253,18 +266,22 @@ let lastWeightRead = 0
 export async function enableRead(kind, getState, { apply = null } = {}) {
   const p = await plugin()
   if (!p) return { ok: false, reason: 'unsupported' }
+  // The daily numbers are Health Connect's; Apple Health has no such read here.
+  if (kind === 'daily' && p.platform === 'ios') return { ok: false, reason: 'unsupported' }
   const st = await p.HC.status().catch(() => ({ status: 'unsupported' }))
   if (st.status !== 'available') return { ok: false, reason: st.status }
-  const perm = kind === 'hr' ? 'heartRate' : 'weight'
+  const perms = kind === 'daily' ? DAILY_PERMS : [kind === 'hr' ? 'heartRate' : 'weight']
+  const perm = perms[0]
   // The history permission only where Health Connect has it (status says so); Apple Health has none.
   const history = kind === 'weight' && p.platform !== 'ios' && st.history === true
-  const res = await p.HC.requestPermissions({ read: history ? [perm, 'history'] : [perm], write: [] }).catch(() => null)
+  const res = await p.HC.requestPermissions({ read: history ? [perm, 'history'] : perms, write: [] }).catch(() => null)
   // Apple Health never says whether reading was allowed (that it was refused is itself private):
   // `read` is then missing, and a refusal just reads nothing.
-  const ok = res && (res.read ? res.read[perm] !== false : true)
+  // The daily numbers are three permissions: one of them is enough, the others just read nothing.
+  const ok = res && (res.read ? perms.some(k => res.read[k] !== false) : true)
   if (!ok) return { ok: false, reason: 'denied' }
   const h = await loadHealth()
-  const out = { ...h, [kind === 'hr' ? 'readHr' : 'readWeight']: true, readError: null }
+  const out = { ...h, [READ_FLAG[kind]]: true, readError: null }
   if (kind === 'weight') out.wHistory = history && res.read?.history === true
   await saveHealth(out)
   told(out)
@@ -272,12 +289,15 @@ export async function enableRead(kind, getState, { apply = null } = {}) {
   return { ok: true, reason: null, health: cached }
 }
 
-/** Turns a read off. What it already brought in stays in the log, as the user's data. */
+/** Turns a read off. What it already brought in stays in the log, as the user's data (the daily numbers, which never were in the log, are cleared). */
 export async function disableRead(kind) {
   if (readRunning) await readRunning.catch(() => {})
   const h = await loadHealth()
-  const out = kind === 'hr' ? { ...h, readHr: false, hrTried: {} } : { ...h, readWeight: false }
-  if (!out.readHr && !out.readWeight) out.readError = null
+  const out = kind === 'hr' ? { ...h, readHr: false, hrTried: {} }
+    : kind === 'daily' ? { ...h, readDaily: false, daily: {} }
+    : { ...h, readWeight: false }
+  if (!out.readHr && !out.readWeight && !out.readDaily) out.readError = null
+  if (kind === 'daily') lastDailyRead = 0
   await saveHealth(out)
   told(out)
   return out
@@ -290,7 +310,7 @@ export async function disableRead(kind) {
  * `force`). The log changes only when something new came in.
  */
 export function readHealth(getState, { force = false, now = Date.now(), apply = null } = {}) {
-  if (!MOBILE || !cached || !(cached.readHr || cached.readWeight)) return Promise.resolve(cached)
+  if (!MOBILE || !cached || !(cached.readHr || cached.readWeight || cached.readDaily)) return Promise.resolve(cached)
   if (!isOn(getState?.(), 'health')) return Promise.resolve(cached)   // paused with the Health module
   if (readRunning) return readRunning
   readRunning = readOnce(getState, force, now, apply || applyRef).finally(() => { readRunning = null })
@@ -355,6 +375,24 @@ async function readOnce(getState, force, now, applyFn) {
       h.seen = seen
       const newest = records.reduce((m, r) => Math.max(m, Number(r?.t) || 0), 0)
       if (newest > h.wCursor) h.wCursor = newest
+    } catch (e) { fail(e) }
+  }
+
+  if (h.readDaily && p.platform !== 'ios' && (force ? now - lastDailyRead >= RESUME_EVERY_MS : now - lastDailyRead >= READ_EVERY_MS)) {
+    try {
+      const kept = Object.keys(h.daily || {}).sort()
+      const newest = kept[kept.length - 1]
+      const floor = firstFullDay(now, DAILY_FIRST_DAYS)
+      let fromDay = floor
+      if (newest) {
+        const d = new Date(newest + 'T12:00:00')
+        d.setDate(d.getDate() - 1)
+        const back = isoOf(d)
+        if (back > floor) fromDay = back
+      }
+      const res = await p.HC.readDaily({ since: readSince(fromDay) })
+      lastDailyRead = now
+      h.daily = mergeDaily(h.daily, dailyFromHub(res, { fromDay }), { now })
     } catch (e) { fail(e) }
   }
 
