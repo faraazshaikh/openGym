@@ -61,7 +61,10 @@ function HeightField({ inches, cm, onChange }) {
 }
 
 // After Calculate the result can sit below the fold of a short phone: bring it into view.
-const showResult = () => setTimeout(() => document.querySelector('.calc-result')?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }), 60)
+const showResult = () => setTimeout(() => {
+  if (typeof document === 'undefined') return // a test's page is gone by now
+  document.querySelector('.calc-result')?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })
+}, 60)
 
 const SEX_OPTIONS = () => [{ value: 'male', label: t('Male') }, { value: 'female', label: t('Female') }]
 
