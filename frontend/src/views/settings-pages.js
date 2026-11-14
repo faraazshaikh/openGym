@@ -43,9 +43,23 @@ export const PAGES = {
 }
 export const PAGE_IDS = Object.keys(PAGES)
 
-// The root, top to bottom. Whether a row shows is pageVisible's call.
-// Modules first, on its own: what the app shows at all comes before how each part behaves.
-export const ROOT_GROUPS = [['modules'], ['workout', 'alerts', 'reminders'], ['plan', 'units', 'equipment'], ['look', 'coach', 'watch', 'zepp'], ['integrations', 'data', 'about']]
+// Settings → the five groups (Fitrix): the root lists these and nothing else, each opens a list of
+// the pages below it. The pages themselves, their rows and the search are unchanged; a search hit
+// still lands straight on its page. `rows` can rename a page's row inside its group (the page keeps
+// its own title), so "Data & backup" does not sit inside a group of the same name.
+export const HUBS = {
+  workouts: { title: 'Workouts', icon: 'play', tint: 'var(--green)', pages: ['workout', 'alerts', 'reminders', 'modules', 'coach'] },
+  'plan-equipment': { title: 'Plan & equipment', icon: 'calendar', tint: 'var(--orange)', pages: ['plan', 'equipment'] },
+  appearance: { title: 'Appearance & units', icon: 'palette', tint: 'var(--purple)', pages: ['look', 'units'] },
+  health: { title: 'Health & devices', icon: 'heart', tint: 'var(--red)', pages: ['health-connect', 'apple-health', 'watch', 'zepp', 'integrations'] },
+  'data-backup': { title: 'Data & backup', icon: 'folder', tint: 'var(--blue)', pages: ['data', 'about'], rows: { data: 'Export & import' } },
+}
+// The root, top to bottom. Whether a group shows is hubVisible's call.
+export const HUB_ORDER = ['workouts', 'plan-equipment', 'appearance', 'health', 'data-backup']
+/** The pages of a group this device has. */
+export const hubPages = (hub, ctx) => (HUBS[hub]?.pages || []).filter(id => pageVisible(id, ctx))
+/** A group with no page on this device is not listed. */
+export const hubVisible = (hub, ctx) => hubPages(hub, ctx).length > 0
 
 /**
  * Whether a page exists for this device and profile. Reminders need a push server (signed in) or

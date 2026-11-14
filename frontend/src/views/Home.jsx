@@ -31,12 +31,14 @@ import RecoveryHint from '../components/RecoveryHint.jsx'
 import { ChallengesCard } from '../components/Challenges.jsx'
 import { isOn } from '../lib/modules.js'
 import HomeToday from '../components/HomeToday.jsx'
+import Elapsed from '../components/Elapsed.jsx'
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
   const user = useStore(s => s.user)
+  const update = useStore(s => s.update)
   // The banner switched off and the sync stuck: a dot on the gear (Settings → Show connection status).
   const trouble = useConnectionTrouble()
   const [weekOffset, setWeekOffset] = useState(0)
@@ -122,17 +124,41 @@ export default function Home() {
   // A chip on the coach week's progress row starts that one routine, in any order. A session
   // already in progress wins, as on the today row — starting another would overwrite it.
   const progChip = programmeChip(S)
+  // The big Start button (the tab bar no longer has one): the planned session when there is one,
+  // otherwise the Start screen; with a session running it brings you back to it.
+  const onStart = () => {
+    if (S.active) { nav('/workout'); return }
+    if (todayRoutines.some(r => r.ex.length)) { startFlow(effectiveRoutineIds(S, todayISO())); return }
+    nav('/workout')
+  }
+  const running = !!S.active && !S.active.editingWorkoutId && !S.active.backfill && S.active.start > 0
+  // The bulb: flips between light and dark. 'System' follows the phone until the first tap.
+  const flipTheme = () => {
+    const now = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
+    update(s => { s.theme = now === 'light' ? 'dark' : 'light' })
+  }
   const onQueueStart = id => { if (S.active) nav('/workout'); else startFlow([id]) }
 
   return <div className="narrow">
     <div className="hdr">
       <SeasonDeco spot="header-bats" />
-      <div><h1>{user ? t('Hi {0}', user.name) : 'FitInit'}</h1><div className="sub">{today.toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}</div></div>
-      <button className="iconbtn" data-tour="settings-gear" onClick={() => nav('/settings')} aria-label={trouble ? t('Settings') + ', ' + t('Connection problem') : t('Settings')}><Icon name="gear" />{trouble && <span className="tab-dot" aria-hidden="true" />}</button>
+      <div><h1>{user ? t('Hi {0}', user.name) : 'Fitrix'}</h1><div className="sub">{today.toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}</div></div>
+      <div className="hdr-actions">
+        <button className="iconbtn" data-tour="settings-gear" onClick={() => nav('/settings')} aria-label={trouble ? t('Settings') + ', ' + t('Connection problem') : t('Settings')}><Icon name="gear" />{trouble && <span className="tab-dot" aria-hidden="true" />}</button>
+        <button className="iconbtn" data-tour="theme-bulb" onClick={flipTheme} aria-label={t('Switch between light and dark')}><Icon name="lightbulb" /></button>
+      </div>
     </div>
 
     {/* Today's rings and the health connection (lib/home-today.js). */}
     <HomeToday />
+
+    {/* The one big Start. With a session running it reads Resume and shows the clock. */}
+    <button type="button" data-tour="start" className={'home-start' + (S.active ? ' rec' : '')} onClick={onStart}
+      aria-label={running ? t('Resume') : undefined}>
+      <span className="cir"><Icon name="play" /></span>
+      {running ? <span className="home-start-t"><Elapsed start={S.active.start} /></span>
+        : <span className="home-start-t">{S.active ? (S.active.editingWorkoutId ? t('Edit workout') : t('Resume')) : t('Start')}</span>}
+    </button>
 
     <div className="card">
       {/* A running programme (lib/programmes.js) wrote this week's plan: where it stands, one tap from its screen. */}
@@ -201,7 +227,7 @@ export default function Home() {
     {/* Christmas (lib/seasonal.js): the advent calendar's card, 1 to 24 December, from the theme's chunk. */}
     <SeasonDeco spot="home-advent" />
 
-    {/* December and January: the year in FitInit is ready (lib/wrapped.js homeCardYear). */}
+    {/* December and January: the year in Fitrix is ready (lib/wrapped.js homeCardYear). */}
     {on('motivation') && <WrappedHomeCard S={S} />}
 
     {/* What has rested and what is still recovering, kindly (lib/recovery-hint.js). */}

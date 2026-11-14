@@ -171,7 +171,7 @@ describe('a strength workout as FIT', () => {
   const sets = of(d, MSG.set)
   const active = sets.filter(s => s[5] === 1)
 
-  it('is a valid activity file from FitInit', () => {
+  it('is a valid activity file from Fitrix', () => {
     expect(fitCrc(workoutFit(strength))).toBe(0)
     const [id] = of(d, MSG.fileId)
     expect(id[0]).toBe(4)                         // activity

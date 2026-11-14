@@ -110,9 +110,9 @@ describe('Settings → Apple Watch', () => {
     expect(host.querySelector('#root-page')).toBeTruthy()
   })
 
-  it('has its row on the root at once on the iPhone app', async () => {
+  it('has its row in Health & devices at once on the iPhone app', async () => {
     globalThis.Capacitor = { getPlatform: () => 'ios' }
-    await act(async () => { root.render(<MemoryRouter><Settings /></MemoryRouter>) })
+    await act(async () => { root.render(<MemoryRouter><Settings page="health" /></MemoryRouter>) })
     expect([...host.querySelectorAll('.lrow')].some(r => r.textContent.includes('Apple Watch'))).toBe(true)
   })
 })

@@ -34,6 +34,12 @@ function render() {
   act(() => root.render(<Library />))
   return host
 }
+// The tab opens empty (nothing is listed until a search or a filter), so the list tests browse a body part.
+function renderIn(bp = 'chest') {
+  const host = render()
+  act(() => [...host.querySelectorAll('.chips .chip')].find(b => b.textContent === bp).click())
+  return host
+}
 const names = host => [...host.querySelectorAll('.item .tt')].map(el => el.textContent).slice(1)   // drop "Create your own"
 const cssSource = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
 
@@ -45,11 +51,11 @@ afterEach(() => { act(() => { mounted.splice(0).forEach(root => root.unmount()) 
 
 describe('Library favourites', () => {
   it('puts favourites first, marked with a star, and leaves the rest in catalogue order', () => {
-    const plain = names(render())
+    const plain = names(renderIn())
     act(() => { mounted.splice(0).forEach(root => root.unmount()) })
     const fav = [plain[6], plain[2]]
     mocks.S.favEx = fav.map(n => EXDB.find(e => e.n === n).id)
-    const host = render()
+    const host = renderIn()
     const shown = names(host)
     expect(shown.slice(0, 2)).toEqual(plain.filter(n => fav.includes(n)))
     expect(shown.slice(2)).toEqual(plain.filter(n => !fav.includes(n)))
@@ -98,9 +104,9 @@ describe('Library exercise-name casing per language', () => {
     it(`${lang}: every translated row is ${CASED_NAME_LANGS.includes(lang) ? 'left in its own casing' : 'title-cased'}`, () => {
       const pack = packs[`../exercise-names/${lang}.js`]
       _setLangState(lang, {}, null, pack)
-      // Starred so they render on the first page: a partial pack may not cover the first rows.
+      // Starred so they render on the first page of their body part: a partial pack may not cover the first rows.
       mocks.S.favEx = Object.keys(pack).slice(0, 3)
-      const rows = [...render().querySelectorAll('.item .tt')].slice(1)   // drop "Create your own"
+      const rows = [...renderIn(EXDB.find(e => e.id === mocks.S.favEx[0]).bp).querySelectorAll('.item .tt')].slice(1)   // drop "Create your own"
       expect(rows.length).toBeGreaterThan(0)
       const translated = rows.filter(el => Object.values(pack).some(n => el.textContent.startsWith(n)))
       expect(translated.length, lang).toBeGreaterThan(0)
@@ -185,5 +191,43 @@ describe('Library similar exercises', () => {
     expect(label(host)).toBe('Similar exercises')
     const all = names(host)
     expect(new Set(all).size).toBe(all.length)
+  })
+})
+
+// Fitrix: the tab no longer opens on the whole catalogue. Nothing from it is listed until there is
+// a search or a body part, type or equipment filter; your own exercises stay in view throughout.
+describe('Library start screen', () => {
+  const pick = (host, bp) => act(() => [...host.querySelectorAll('.chips .chip')].find(b => b.textContent === bp).click())
+  const search = (host, text) => {
+    const input = host.querySelector('.search input')
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+    act(() => { setter.call(input, text); input.dispatchEvent(new Event('input', { bubbles: true })) })
+  }
+
+  it('lists no catalogue exercise and says where to start, until a search or a body part', () => {
+    const host = render()
+    expect(names(host)).toEqual([])
+    expect(host.querySelector('.lib-start').textContent).toBe('Search above, or pick a body part to browse.')
+    expect(host.textContent).not.toContain('No match')
+    expect(host.querySelector('.search-count')).toBeNull()
+    pick(host, 'chest')
+    expect(names(host).length).toBeGreaterThan(0)
+    expect(host.querySelector('.lib-start')).toBeNull()
+  })
+
+  it('a search brings the list, and clearing it takes the list away again', () => {
+    const host = render()
+    search(host, 'face pull')
+    expect(names(host).length).toBeGreaterThan(0)
+    search(host, '')
+    expect(names(host)).toEqual([])
+    expect(host.querySelector('.lib-start')).not.toBeNull()
+  })
+
+  it('your own exercises are listed from the start', () => {
+    mocks.S.customEx = [{ id: 'mine-1', n: 'My cable fly', bp: 'chest', eq: 'cable', tg: 'chest' }]
+    const host = render()
+    expect(names(host)).toEqual(['My cable fly'])
+    expect(host.querySelector('.lib-start')).not.toBeNull()
   })
 })

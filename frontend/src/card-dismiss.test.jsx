@@ -117,6 +117,7 @@ describe('Home: the streak card and check-in', () => {
 describe('exercise rows with a trailing button', () => {
   it('Library: Add to my plan does not open the exercise, the name does', () => {
     const host = render(<Library />)
+    act(() => [...host.querySelectorAll('.chips .chip')].find(c => c.textContent === 'chest').click())   // the tab lists nothing until a body part or a search
     const row = [...host.querySelectorAll('.list .item.tap-host')][0]
     expect(row.getAttribute('role')).toBeNull()
     act(() => row.querySelector('.lib-add').click())

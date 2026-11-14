@@ -279,7 +279,7 @@ describe('parseHevyRoutines', () => {
     ],
   }
 
-  it('builds FitInit routine configs from Hevy sets', () => {
+  it('builds Fitrix routine configs from Hevy sets', () => {
     const parsed = parseHevyRoutines([ROUTINE], TEMPLATES, { unit: 'kg' })
     expect(parsed.routines).toHaveLength(1)
     expect(parsed.routines[0].name).toBe('Oberkörper 2')

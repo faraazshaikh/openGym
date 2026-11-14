@@ -54,9 +54,18 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+// The Library lists nothing until a search or a body part: these pick the body part with the most exercises.
+const renderLibrary = () => {
+  const host = render(<Library />)
+  const count = bp => EXDB.filter(e => e.bp === bp).length
+  const biggest = BODYPARTS.slice().sort((a, b) => count(b) - count(a))[0]
+  act(() => [...host.querySelectorAll('.chips .chip')].find(c => c.textContent === biggest).click())
+  return host
+}
+
 describe('lists load their next page as you scroll', () => {
   it('Library: the button coming into view loads the next 40', () => {
-    const host = render(<Library />)
+    const host = renderLibrary()
     expect(rows(host)).toBe(40)
     comeIntoView()
     expect(rows(host)).toBe(80)
@@ -98,7 +107,7 @@ describe('lists load their next page as you scroll', () => {
 
   it('without IntersectionObserver the button still loads more, and nothing breaks', () => {
     vi.stubGlobal('IntersectionObserver', undefined)
-    const host = render(<Library />)
+    const host = renderLibrary()
     expect(rows(host)).toBe(40)
     act(() => showMore(host).click())
     expect(rows(host)).toBe(80)

@@ -3302,3 +3302,14 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 .ht-ico{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:var(--acc-soft);color:var(--acc-ink,var(--acc))}
 .ht-ctitle{font-size:var(--fs-title3);font-weight:600;letter-spacing:-.01em}
 .ht-csub{font-size:var(--fs-subhead);line-height:1.4;color:var(--label-2);margin-top:-6px}
+
+/* Home: the one big Start / Resume button (the tab bar no longer carries it). */
+.home-start{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;margin:2px 0 14px;padding:14px 18px;border:0;border-radius:var(--r-lg,18px);background:var(--acc);color:var(--on-acc,#000);font:inherit;font-size:var(--fs-headline,17px);font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.home-start:active{transform:scale(var(--press-scale-sm,.97))}
+.home-start .cir{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.14)}
+.home-start .cir .icn{font-size:18px;color:inherit}
+.home-start.rec{background:var(--orange);color:#000}
+.home-start-t{font-variant-numeric:tabular-nums}
+
+/* Exercises: the line shown before anything is searched or picked. */
+.lib-start{padding:28px 16px;text-align:center;font-size:var(--fs-subhead,15px)}

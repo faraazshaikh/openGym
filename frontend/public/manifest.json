@@ -1,6 +1,6 @@
 {
-  "name": "FitInit",
-  "short_name": "FitInit",
+  "name": "Fitrix",
+  "short_name": "Fitrix",
   "description": "Personal gym & body weight tracker",
   "start_url": "./",
   "scope": "./",

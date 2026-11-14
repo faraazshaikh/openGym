@@ -41,6 +41,7 @@ const COPY = {
   'go-library': () => [t('The exercise library'), t('Every exercise is one tap away. Tap Exercises.')],
   'lib-search': () => [t('Find any exercise'), t('Search thousands of exercises in your language. Star your favourites and they float to the top.')],
   'lib-filters': () => [t('Filter it down'), t('Narrow the list by body part, type or the equipment you have.')],
+  'go-home-start': () => [t('The big Start button'), t('Head back to Home first. Tap it.')],
   start: () => [t('The big Start button'), t('It starts today’s plan, or lets you pick something else. Tap it for a practice run.')],
   set: () => [t('A practice workout'), t('This one is pretend, nothing gets saved. Each row is a set: weight, then reps. Tap a number to change it.')],
   tick: () => [t('Tick it off'), t('Done with a set? Tick it. Go on, try it.')],
@@ -106,6 +107,7 @@ const COPY = {
   'b-up': () => [t('Up one level'), t('Tap back to Settings.')],
   'b-go-home': () => [t('Settings are on Home'), t('Head back to Home first. Tap it.')],
   'b-go-settings': () => [t('The gear'), t('Everything you can tweak hides behind this little gear. Tap it.')],
+  'b-hub': () => [t('Data & backup'), t('Tap it.')],
   'b-data': () => [t('Data & backup'), t('Tap it.')],
   'b-export': () => [t('Back it all up'), t('One file with everything. Keep it somewhere safe, Import backup brings it back.')],
   'b-csv': () => [t('Spreadsheet'), t('Your sets, weigh-ins and measurements as CSV. Our importer reads it back too.')],
@@ -113,8 +115,9 @@ const COPY = {
   'b-health': () => [t('Health apps'), t('Share weigh-ins and workouts with the phone’s health app.')],
   'b-import': () => [t('Restore a backup'), t('Pick a backup file and it’s all back.')],
   'b-apps': () => [t('Moving in?'), t('Strong, Hevy, FitNotes, GymMane or Apple Health body weight: import their export here.')],
+  'b-up3': () => [t('One more'), t('Syncing lives under your account. Tap back to Settings.')],
   'b-up2': () => [t('One more'), t('Syncing lives under your account. Tap back to Settings.')],
-  'b-sync': () => [t('Your own server'), t('Syncing your devices through your own FitInit server lives under your account. No server? Everything still works on this device.')],
+  'b-sync': () => [t('Your own server'), t('Syncing your devices through your own Fitrix server lives under your account. No server? Everything still works on this device.')],
   'b-done': () => [t('That’s the lot'), t('Your data, your call. Back it up now and then, future you will be grateful.')],
 }
 

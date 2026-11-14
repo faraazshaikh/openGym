@@ -2,13 +2,13 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import TabBar from './TabBar.jsx'
 import { DEF, useStore } from '../store/useStore.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-let host, root, router, originalS, originalUser, onStart
+let host, root, router, originalS, originalUser
 beforeEach(() => {
   const store = useStore.getState()
   originalS = store.S
@@ -17,8 +17,7 @@ beforeEach(() => {
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
-  onStart = vi.fn()
-  router = createMemoryRouter([{ path: '*', element: <TabBar onStart={onStart} /> }], { initialEntries: ['/home'] })
+  router = createMemoryRouter([{ path: '*', element: <TabBar /> }], { initialEntries: ['/home'] })
   act(() => root.render(<RouterProvider router={router} />))
 })
 afterEach(() => {
@@ -37,7 +36,7 @@ const go = async to => { await act(async () => router.navigate(to)) }
 describe('root tab history', () => {
   it('does not accumulate a back stack when switching tabs repeatedly', async () => {
     for (let i = 0; i < 3; i++) {
-      for (const label of ['Plan', 'Stats', 'Exercises', 'Home']) await tap(label)
+      for (const label of ['Plan', 'Progress', 'You', 'Home']) await tap(label)
     }
     await tap('Plan')
     expect(router.state.location.pathname).toBe('/plan')
@@ -50,7 +49,7 @@ describe('root tab history', () => {
     await tap('Home')
     expect(router.state.location.key).toBe(key)
     await go('/stats?range=month')
-    await tap('Stats')
+    await tap('Progress')
     expect(router.state.location.pathname).toBe('/stats')
     expect(router.state.location.search).toBe('')
   })
@@ -70,14 +69,5 @@ describe('root tab history', () => {
     await tap('Plan')
     expect(router.state.location.pathname).toBe('/plan')
     expect(router.state.historyAction).toBe('REPLACE')
-  })
-
-  it('preserves the workout chooser return path', async () => {
-    useStore.setState({ S: { ...useStore.getState().S, routines: [] } })
-    await tap('Start')
-    expect(router.state.location.pathname).toBe('/workout')
-    await go(-1)
-    expect(router.state.location.pathname).toBe('/home')
-    expect(onStart).not.toHaveBeenCalled()
   })
 })

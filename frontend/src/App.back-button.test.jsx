@@ -73,8 +73,8 @@ describe("a page's own back button", () => {
     const row = text => [...document.querySelectorAll('#app button, #app [role="button"]')].find(b => b.textContent.trim().startsWith(text))
     await go('#/settings/workout')
     await scrolledTo(400)                                    // an earlier visit, left halfway down
-    await go('#/settings')
-    await tap(await appear(() => row('Workout')))            // opened again: at the top
+    await go('#/settings/workouts')
+    await tap(await appear(() => row('Workout')))            // opened again, from its group: at the top
     expect(window.location.hash).toBe('#/settings/workout')
     await tap(row('Fine-tuning'))
     await tap(document.querySelector('#app [data-back]'))    // back the way it came

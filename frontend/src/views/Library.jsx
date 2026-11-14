@@ -67,6 +67,10 @@ export default function Library() {
   const similar = q.trim() && qLate === q && f.length <= shown
     ? similarExercises(allExercises(S).filter(e => (!bp || e.bp === bp) && (!profile || showAll || exAvailable(S, e))), q, f, f.length ? 12 : 30)
     : []
+  // Nothing from the catalogue is listed until you search or pick a body part, type or equipment
+  // (the 5,000-row list was the first thing in the tab). Your own exercises stay in view.
+  const ownIds = new Set((S.customEx || []).filter(c => c && c.id).map(c => c.id))
+  const view = narrowed ? f : f.filter(e => ownIds.has(e.id))
   const row = e => {
     const best = bestWeightFor(S, e.id)
     // The row is not a button: its name is, stretched over the row (.tap-main), with Add to my plan
@@ -121,12 +125,13 @@ export default function Library() {
         <div className="thumb thumb-x"><Icon name="plusCircle" /></div>
         <div className="grow"><div className="tt">{t('Create your own exercise')}</div><div className="ss">{t('name + body part, and a photo or video if you like')}</div></div><Icon name="plus" className="chev" />
       </div>
-      {f.slice(0, shown).map(row)}
-      {f.length === 0 && !similar.length && <div className="empty"><div className="ico"><Icon name="magnifier" /></div>{t('No match')}</div>}
+      {view.slice(0, shown).map(row)}
+      {!narrowed && <div className="lib-start dim">{t('Search above, or pick a body part to browse.')}</div>}
+      {narrowed && f.length === 0 && !similar.length && <div className="empty"><div className="ico"><Icon name="magnifier" /></div>{t('No match')}</div>}
       {similar.length > 0 && <h4 className="sec similar-label">{f.length ? t('Similar exercises') : t('No exact match. These come close:')}</h4>}
       {similar.map(row)}
     </div>
-    {f.length > shown && <><div style={{ height: 10 }} /><Button ref={moreRef} onClick={() => setShown(s => s + 40)}>{t('Show more')}</Button></>}
+    {view.length > shown && <><div style={{ height: 10 }} /><Button ref={moreRef} onClick={() => setShown(s => s + 40)}>{t('Show more')}</Button></>}
   </>
 }
 

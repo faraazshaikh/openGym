@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { PAGES, PAGE_IDS, ROOT_GROUPS, SEARCH, pageVisible, searchSettings, pageTrail, fold } from './settings-pages.js'
+import { PAGES, PAGE_IDS, HUBS, HUB_ORDER, hubPages, hubVisible, SEARCH, pageVisible, searchSettings, pageTrail, fold } from './settings-pages.js'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -89,24 +89,42 @@ const guestWeb = {
 }
 
 describe('the root', () => {
-  it('is an account card and one row per page, in the four groups, with value previews', () => {
+  it('is an account card and five groups, nothing else', () => {
     mount()
     expect(host.querySelector('.sp-acct .lrow-t').textContent).toBe('Guest')
     expect(host.querySelector('.sp-acct .lrow-s').textContent).toBe('Your data lives on this device. Sign in to sync.')
+    expect(titles()).toEqual(['Guest', 'Workouts', 'Plan & equipment', 'Appearance & units', 'Health & devices', 'Data & backup'])
+  })
+
+  it('each group lists its pages, with value previews', () => {
     // a guest in a browser has no reminders (no push server) and no Coach page (the server's Coach)
-    expect(titles()).toEqual(['Guest', 'Modules', 'Workout', 'Timer alerts', 'Plan & schedule', 'Units & language', 'Equipment', 'Look & Home', 'Integrations', 'Data & backup', 'About & updates'])
+    mount('workouts')
+    expect(titles()).toEqual(['Workout', 'Timer alerts', 'Modules'])
     expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('1:30 rest · Cards')
     expect(rowTitled('Timer alerts').querySelector('.lrow-v').textContent).toBe('Sound · Vibrate')
+    mount('plan-equipment')
+    expect(titles()).toEqual(['Plan & schedule', 'Equipment'])
     expect(rowTitled('Plan & schedule').querySelector('.lrow-v').textContent).toMatch(/^Fixed Week · Mon/)
-    expect(rowTitled('Units & language').querySelector('.lrow-v').textContent).toBe('kg · English')
     expect(rowTitled('Equipment').querySelector('.lrow-v').textContent).toBe('Everything')
+    mount('appearance')
+    expect(titles()).toEqual(['Look & Home', 'Units & language'])
+    expect(rowTitled('Units & language').querySelector('.lrow-v').textContent).toBe('kg · English')
+    mount('health')
+    expect(titles()).toEqual(['Integrations'])
+    mount('data-backup')
+    expect(titles()).toEqual(['Export & import', 'About & updates'])
     expect(rowTitled('About & updates').querySelector('.lrow-v').textContent).toMatch(/^v\d|^vtest/)
   })
 
   it('marks the page rows so a long preview wraps instead of losing its second half', () => {
     mount()
-    const rows = ['Workout', 'Timer alerts', 'Plan & schedule', 'Units & language', 'Look & Home'].map(rowTitled)
-    for (const r of rows) expect(r.classList.contains('sp-root-row')).toBe(true)
+    for (const r of ['Workouts', 'Plan & equipment', 'Appearance & units', 'Health & devices', 'Data & backup'].map(rowTitled)) expect(r.classList.contains('sp-root-row')).toBe(true)
+    mount('workouts')
+    for (const r of ['Workout', 'Timer alerts'].map(rowTitled)) expect(r.classList.contains('sp-root-row')).toBe(true)
+    mount('plan-equipment')
+    expect(rowTitled('Plan & schedule').classList.contains('sp-root-row')).toBe(true)
+    mount('appearance')
+    for (const r of ['Units & language', 'Look & Home'].map(rowTitled)) expect(r.classList.contains('sp-root-row')).toBe(true)
     // index.css: the marked rows' value may wrap, and never shrinks below its longest word
     const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')
     const rule = css.match(/^\.lrow\.sp-root-row \.lrow-v\{([^}]*)\}/m)?.[1] || ''
@@ -125,35 +143,39 @@ describe('the root', () => {
 
   it('previews a rest that was never on the old list, and no timer at all', () => {
     mocks.S.restSec = 105
-    mount()
+    mount('workouts')
     expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('1:45 rest · Cards')
     mocks.S.restSec = 0
-    mount()
+    mount('workouts')
     expect(rowTitled('Workout').querySelector('.lrow-v').textContent).toBe('No rest timer · Cards')
   })
 
   it('signed in, Reminders is there and the card names the account; on the phone app the Coach too', () => {
     mocks.user = { id: 'u1', name: 'Dana' }
     mount()
-    expect(titles()).toContain('Reminders')
-    expect(titles()).not.toContain('AI Coach')
     expect(host.querySelector('.sp-acct .lrow-t').textContent).toBe('Dana')
     expect(host.querySelector('.sp-avatar').textContent).toBe('D')
+    mount('workouts')
+    expect(titles()).toContain('Reminders')
+    expect(titles()).not.toContain('AI Coach')
     mocks.user = null
     mocks.MOBILE = true
-    mount()
+    mount('workouts')
     expect(titles()).toContain('Reminders')
     expect(titles()).toContain('AI Coach')
+    mount()
     expect(host.querySelector('.sp-acct .lrow-t').textContent).toBe('This phone')
   })
 
   it('a row opens its page; the Coach row opens the phone Coach setup; the card opens Account', () => {
     mocks.MOBILE = true
     mount()
+    act(() => rowTitled('Workouts').click())
+    act(() => host.querySelector('.sp-acct').click())
+    mount('workouts')
     act(() => rowTitled('Timer alerts').click())
     act(() => rowTitled('AI Coach').click())
-    act(() => host.querySelector('.sp-acct').click())
-    expect(mocks.navs).toEqual([['/settings/alerts'], ['/coach/setup'], ['/settings/account']])
+    expect(mocks.navs).toEqual([['/settings/workouts'], ['/settings/account'], ['/settings/alerts'], ['/coach/setup']])
   })
 
   it('in a hosted app, an admin gets the Coach row too, straight to the Coach card of the admin dashboard', () => {
@@ -300,7 +322,7 @@ describe('the search query', () => {
     window.history.replaceState({ key: 'root2', idx: 3 }, '')  // the gear, a tab, Android Back then the gear
     mount()
     expect(host.querySelector('.sp-search input').value).toBe('')
-    expect(titles()).toContain('Timer alerts')
+    expect(titles()).toContain('Workouts')
   })
 })
 
@@ -510,8 +532,23 @@ describe('translations', () => {
       expect(missing, file).toEqual([])
     }
   })
-  it('the root groups only name real pages', () => {
-    for (const g of ROOT_GROUPS) for (const id of g) expect(PAGES[id], id).toBeTruthy()
+  it('the five groups only name real pages, and every top-level page sits in exactly one of them', () => {
+    expect(HUB_ORDER).toEqual(Object.keys(HUBS))
+    const seen = []
+    for (const h of HUB_ORDER) for (const id of HUBS[h].pages) { expect(PAGES[id], id).toBeTruthy(); seen.push(id) }
+    expect(new Set(seen).size).toBe(seen.length)
+    // nothing was dropped: every page with no parent is in a group (the account card is the one exception)
+    const top = PAGE_IDS.filter(id => !PAGES[id].parent && id !== 'account')
+    expect(top.filter(id => !seen.includes(id))).toEqual([])
+  })
+  it('a group shows the pages this device has, and is left out when it has none', () => {
+    const web = { user: null, mobile: false, ios: false, android: false }
+    expect(hubPages('workouts', web)).toEqual(['workout', 'alerts', 'modules'])
+    expect(hubVisible('health', web)).toBe(true)
+    expect(hubPages('health', web)).toEqual(['integrations'])
+    const android = { user: null, mobile: true, ios: false, android: true }
+    expect(hubPages('health', android)).toEqual(['health-connect', 'integrations'])
+    expect(hubPages('workouts', android)).toEqual(['workout', 'alerts', 'reminders', 'modules', 'coach'])
   })
 })
 
