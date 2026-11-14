@@ -101,4 +101,16 @@ describe('the app download on the landing page', () => {
     const link = [...page.querySelectorAll('a')].find(a => a.textContent === 'Download Fitrix for Android')
     expect(link.getAttribute('href')).toBe('https://github.com/faraazshaikh/openGym/releases/latest/download/Fitrix.apk')
   })
+
+  it('an iPhone gets the Add to Home Screen steps instead of the Android file', () => {
+    const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15')
+    try {
+      mocks.config = { invite_only: true }
+      const page = mount(<Login />)
+      type(page.querySelector('input[placeholder="Invite code"]'), 'abc')
+      expect(page.textContent).toContain('Put Fitrix on your iPhone')
+      expect(page.textContent).toContain('Add to Home Screen')
+      expect(page.textContent).not.toContain('Download Fitrix for Android')
+    } finally { ua.mockRestore() }
+  })
 })

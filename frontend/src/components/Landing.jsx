@@ -15,8 +15,13 @@ const ABOUT = [
   ['Log every session', 'Pick a plan or build your own, log sets and reps, and let the rest timer count you in. Fitrix works out what to lift next as you progress.'],
   ['See it move', 'Personal records, lifting volume, body weight and measurements, charted over time so the trend is clear.'],
   ['Yours alone', 'Your data lives on this server, not with an advertising company. No tracking, nothing sold.'],
-  ['On your phone', 'Install it from your browser, or use the Android app. On Android it can read steps, sleep and calories from Health Connect.'],
+  ['On your phone', 'On iPhone, open this page in Safari and use Share, then Add to Home Screen. On Android you can do the same or install the app, which can also read steps, sleep and calories from Health Connect.'],
 ]
+
+// iPhones and iPads (iPadOS says it is a Mac, with a touch screen). There is no iPhone app for
+// Fitrix, so they get the Home Screen steps instead of the Android file.
+export const isIOS = () => typeof navigator !== 'undefined'
+  && (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
 export default function Landing({ head, tagline, onContinue, signin }) {
   const [code, setCode] = useState('')
@@ -42,7 +47,11 @@ export default function Landing({ head, tagline, onContinue, signin }) {
 
       {/* Shown once a code is typed. The link always points at the newest release, so it never
           needs editing when a version ships. */}
-      {code.trim() && <div className="card" style={{ textAlign: 'start', marginTop: 12 }}>
+      {code.trim() && isIOS() && <div className="card" style={{ textAlign: 'start', marginTop: 12 }}>
+        <h2 style={{ margin: '0 0 4px' }}>Put Fitrix on your iPhone</h2>
+        <div className="dim small">There is no App Store app, but the web version works like one. Sign up with the code above, then open this page in Safari, tap Share, and choose Add to Home Screen. It opens full screen from then on, and your data syncs with your other devices.</div>
+      </div>}
+      {code.trim() && !isIOS() && <div className="card" style={{ textAlign: 'start', marginTop: 12 }}>
         <h2 style={{ margin: '0 0 4px' }}>Get the Android app</h2>
         <div className="dim small" style={{ marginBottom: 12 }}>Always the newest version. Open the file after it downloads and allow the install if your phone asks. Sign up with the code above, then pair the app from Settings.</div>
         <a className="btn" href={APP_DOWNLOAD} style={{ textDecoration: 'none' }}>Download Fitrix for Android</a>

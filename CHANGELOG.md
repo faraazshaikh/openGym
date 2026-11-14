@@ -13,8 +13,8 @@ their data is kept, and you can add months or make them indefinite from their pa
 works with the email it was made for.
 
 **A proper front page.** Someone who opens the server without being signed in sees what Fitrix is
-about, a box for their invite code and, once they type a code, a link to the newest Android app. People
-who already have a profile sign in from the same page.
+about, a box for their invite code and, once they type a code, a link to the newest Android app, or
+the Add to Home Screen steps on an iPhone. People who already have a profile sign in from the same page.
 
 **Release notes in every release.** Each release on GitHub now carries its section of this file, and
 the newest app is always at one link: releases/latest/download/Fitrix.apk.
