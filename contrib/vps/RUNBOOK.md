@@ -4,7 +4,7 @@ A step-by-step for putting the Fitrix server on a VPS that already runs other th
 so that nothing here touches your existing sites, n8n or the Jarvis agents: Fitrix listens on
 `127.0.0.1:8085` only, in its own folder (`/opt/fitrix`), with its own containers.
 
-Replace `YOUR_DOMAIN` everywhere with the new domain. Run the steps as root over SSH.
+The address is `fit.intellisenselabs.com`. Passkeys are tied to it, so changing it later means everyone registers a passkey again and phones are paired again (the data is not lost). Run the steps as root over SSH.
 
 ## 0. Before anything else
 
@@ -13,12 +13,11 @@ systems; a snapshot is the undo button for everything below.
 
 ## 1. Domain and DNS
 
-1. Buy the domain.
-2. Add one DNS record at the domain's DNS: type `A`, name `@`, value `187.77.174.87`.
-3. Wait until this prints the VPS address (it can take a few minutes up to an hour):
+1. Where the DNS for `intellisenselabs.com` is managed, add one record: type `A`, name `fit`, value `187.77.174.87`.
+2. Wait until this prints the VPS address (a few minutes up to an hour):
 
 ```sh
-dig +short YOUR_DOMAIN
+dig +short fit.intellisenselabs.com
 ```
 
 ## 2. Look before you build (read-only)
@@ -40,7 +39,6 @@ which proxy file you use in step 5.
 git clone --branch feat/fitinit-home https://github.com/faraazshaikh/openGym.git /opt/fitrix
 cd /opt/fitrix
 cp contrib/vps/env.vps.example .env
-sed -i 's/YOUR_DOMAIN/the.real.domain/g' .env
 ```
 
 Once the work is merged to `main`, clone `main` instead.
@@ -65,25 +63,24 @@ Use the file that matches what step 2 showed.
 
 ```sh
 cp /opt/fitrix/contrib/vps/nginx-fitrix.conf /etc/nginx/sites-available/fitrix
-sed -i 's/YOUR_DOMAIN/the.real.domain/g' /etc/nginx/sites-available/fitrix
 ln -s /etc/nginx/sites-available/fitrix /etc/nginx/sites-enabled/fitrix
 nginx -t && systemctl reload nginx
-certbot --nginx -d the.real.domain
+certbot --nginx -d fit.intellisenselabs.com
 ```
 
 `nginx -t` must say "syntax is ok" before the reload. If it does not, remove the link and stop.
 
-**Caddy**: add `contrib/vps/Caddyfile.snippet` to the existing Caddyfile with the real domain, then
+**Caddy**: add `contrib/vps/Caddyfile.snippet` to the existing Caddyfile, then
 `caddy reload`.
 
 **Traefik or Cloudflare Tunnel**: route the domain to `http://127.0.0.1:8085`. Leave
 `CF_CONNECTING_IP` unset unless Cloudflare really is in front.
 
-Check from your own computer: `https://the.real.domain/api/health` answers over HTTPS.
+Check from your own computer: `https://fit.intellisenselabs.com/api/health` answers over HTTPS.
 
 ## 6. Register yourself as the admin
 
-1. Open `https://the.real.domain` in a browser and create your profile with a passkey. The first
+1. Open `https://fit.intellisenselabs.com` in a browser and create your profile with a passkey. The first
    profile on a fresh server becomes the admin (`FIRST_USER_ADMIN=1`).
 2. Open Settings. An "Admin dashboard" link should be there. If it is not, stop and tell me.
 
@@ -115,7 +112,7 @@ the whole disk, but they are not a substitute for a copy of `data/`.
 ## 9. Connect the phone app
 
 In a signed-in browser: Settings, Account, "Pair the mobile app". In the app: Settings, "Server &
-sync", enter `https://the.real.domain` and the code. The details and the common errors are in
+sync", enter `https://fit.intellisenselabs.com` and the code. The details and the common errors are in
 `docs/MOBILE.md`.
 
 ## Updating later
