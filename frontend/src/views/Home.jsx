@@ -155,9 +155,12 @@ export default function Home() {
     {/* The one big Start. With a session running it reads Resume and shows the clock. */}
     <button type="button" data-tour="start" className={'home-start' + (S.active ? ' rec' : '')} onClick={onStart}
       aria-label={running ? t('Resume') : undefined}>
+      <span className="home-start-m">
+        <span className="home-start-l">{running ? t('Resume') : !S.active && routine ? todayName : t('Today')}</span>
+        {running ? <span className="home-start-t"><Elapsed start={S.active.start} /></span>
+          : <span className="home-start-t">{S.active ? (S.active.editingWorkoutId ? t('Edit workout') : t('Resume')) : t('Start')}</span>}
+      </span>
       <span className="cir"><Icon name="play" /></span>
-      {running ? <span className="home-start-t"><Elapsed start={S.active.start} /></span>
-        : <span className="home-start-t">{S.active ? (S.active.editingWorkoutId ? t('Edit workout') : t('Resume')) : t('Start')}</span>}
     </button>
 
     <div className="card">

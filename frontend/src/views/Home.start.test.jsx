@@ -39,7 +39,7 @@ const bulb = () => host.querySelector('[data-tour="theme-bulb"]')
 describe('Home — the big Start button', () => {
   it('starts today’s plan when there is one', () => {
     setS(); mount()
-    expect(startBtn().textContent).toBe('Start')
+    expect(startBtn().querySelector('.home-start-t').textContent).toBe('Start')
     act(() => startBtn().click())
     expect(startFlow).toHaveBeenCalledWith(['r1'])
     expect(nav).not.toHaveBeenCalled()
@@ -54,7 +54,7 @@ describe('Home — the big Start button', () => {
 
   it('reads Resume with a session running and brings you back to it, never starting another', () => {
     setS({ active: { id: 'a', name: 'Push', entries: [], cur: 0 } }); mount()
-    expect(startBtn().textContent).toBe('Resume')
+    expect(startBtn().querySelector('.home-start-t').textContent).toBe('Resume')
     expect(startBtn().className).toContain('rec')
     act(() => startBtn().click())
     expect(nav).toHaveBeenCalledWith('/workout')
@@ -66,14 +66,14 @@ describe('Home — the big Start button', () => {
     try {
       vi.setSystemTime(new Date(2026, 10, 14, 18, 0, 0))
       setS({ active: { id: 'a', name: 'Push', entries: [], cur: 0, start: Date.now() - 754_000 } }); mount()
-      expect(startBtn().textContent).toBe('12:34')
+      expect(startBtn().querySelector('.home-start-t').textContent).toBe('12:34')
       expect(startBtn().getAttribute('aria-label')).toBe('Resume')
     } finally { vi.useRealTimers() }
   })
 
   it('says Edit workout while a saved workout is being edited', () => {
     setS({ active: { id: 'a', name: 'Push', entries: [], cur: 0, editingWorkoutId: 'w1' } }); mount()
-    expect(startBtn().textContent).toBe('Edit workout')
+    expect(startBtn().querySelector('.home-start-t').textContent).toBe('Edit workout')
   })
 })
 
