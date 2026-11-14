@@ -56,4 +56,19 @@ describe('Calendar canonical workout days', () => {
     expect(sessions.textContent).toContain('Legacy A')
     expect(sessions.textContent).toContain('Legacy B')
   })
+
+  it('marks a trained day with a tick and leaves other days without one', () => {
+    const day = todayISO()
+    const start = new Date(day + 'T09:00:00').getTime()
+    useStore.setState({ S: {
+      ...original,
+      workouts: [{ id: 'w1', d: day, start, end: start + 30 * 60000, name: 'Push', vol: 100, entries: [] }],
+    } })
+
+    calendarSheet(day)
+    const host = renderTop()
+    const trained = host.querySelector('button.cal-d.has')
+    expect(trained.querySelector('svg[data-icon="check"]')).toBeTruthy()
+    expect(host.querySelectorAll('.cal-grid svg[data-icon="check"]').length).toBe(1)
+  })
 })
