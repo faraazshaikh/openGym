@@ -877,6 +877,12 @@ export default function Settings({ page = null, find = null, via = null, entryKe
             options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]}
             value={S.unit} onChange={v => switchUnit(v)} />
         </Row>
+        <Row icon="ruler" iconTint="var(--teal)" title={t('Body measurement unit')}
+          subtitle={t('Waist, neck, chest and the other tape measures. Weight keeps its own unit.')}>
+          <Segmented className="seg-inline"
+            options={[{ value: 'cm', label: 'cm' }, { value: 'in', label: 'in' }]}
+            value={S.lengthUnit || (S.unit === 'lb' ? 'in' : 'cm')} onChange={v => update(s => { s.lengthUnit = v })} />
+        </Row>
         {/* Display only: one decimal reads fine for plate-loadable numbers, two for anyone whose
             per-side figure lands on .25 or .75, or who loads microplates (issue #139). Nothing is
             stored or rounded differently; lib/format.js fmtNum just prints what is already there. */}

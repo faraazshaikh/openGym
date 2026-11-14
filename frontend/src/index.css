@@ -920,6 +920,10 @@ body.chips-dragging *{cursor:inherit}
 .bw-src{font-size:var(--fs-caption2);color:var(--pink)}
 .bw-day{padding:10px 2px 2px}
 .measure-form{display:grid;grid-template-columns:1fr 1fr;gap:11px 10px}
+.calc-form{display:grid;gap:12px}
+.calc-form .measure-input .num{min-width:0}
+.calc-result{margin-top:14px}
+.measure-input.hgt .num{width:3.2em;flex:none}
 .measure-field{min-width:0}
 .measure-input{height:47px;background:var(--surface-2);border-radius:var(--r);display:flex;align-items:center;padding:0 12px;gap:6px}
 .measure-input .num{width:100%;min-width:0;background:transparent;border:0;outline:none;font-size:18px;font-weight:500;color:var(--label);padding:0}

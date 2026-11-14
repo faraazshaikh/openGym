@@ -2442,6 +2442,13 @@ export const PT_BR_OVERRIDES = {
   "Your webhooks stop sending while Integrations is off. They stay set up.": "Seus webhooks param de enviar enquanto “Integrações” estiver desligado. Continuam configurados.",
   "{0} stops syncing while Health is off. Nothing is disconnected, and it catches up once Health is back.": "{0} para de sincronizar enquanto “Saúde” estiver desligado. Nada fica desconectado, e ele se atualiza quando “Saúde” voltar.",
   "Mi Fitness, Zepp, Google Fit and others save these on your phone. Shown in the calendar, on this phone only.": "O Mi Fitness, o Zepp, o Google Fit e outros apps salvam esses dados no seu telefone. Aparecem no calendário, só neste telefone.",
+  "Enter your age, weight and height to get a result.": "Informe idade, peso e altura para ver o resultado.",
+  "I don't know my fat percentage": "Não sei minha porcentagem de gordura",
+  "My fat percentage": "Minha porcentagem de gordura",
+  "Those numbers do not give a sensible result. Check the waist, neck and height.": "Esses números não dão um resultado razoável. Confira cintura, pescoço e altura.",
+  "The energy your body burns at rest, and with your exercise on top.": "A energia que o corpo queima em repouso, e com o seu exercício por cima.",
+  "With your exercise": "Com o seu exercício",
+  "Worked out from your lean mass (Katch-McArdle).": "Calculado a partir da sua massa magra (Katch-McArdle).",
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }
