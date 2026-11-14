@@ -3652,4 +3652,10 @@ export default {
   "Your webhooks stop sending while Integrations is off. They stay set up.": "“集成”关闭期间，你的 Webhook 不会发送。设置仍然保留。",
   "{0} of {1} modules on.": "已开启 {0}/{1} 个模块。",
   "{0} stops syncing while Health is off. Nothing is disconnected, and it catches up once Health is back.": "“健康”关闭期间，{0} 会停止同步。不会断开任何连接，“健康”重新开启后会自动补上。",
+  "Steps": "步数",
+  "Sleep": "睡眠",
+  "Resting heart rate": "静息心率",
+  "Daily average": "日均",
+  "Steps, sleep and resting heart rate": "步数、睡眠和静息心率",
+  "Mi Fitness, Zepp, Google Fit and others save these on your phone. Shown in the calendar, on this phone only.": "Mi Fitness、Zepp、Google Fit 等应用会把这些数据存到手机里。显示在日历中，仅保存在这部手机上。",
 }

@@ -11,6 +11,9 @@ import androidx.health.connect.client.PermissionController;
 import androidx.health.connect.client.records.ExerciseSessionRecord;
 import androidx.health.connect.client.records.HeartRateRecord;
 import androidx.health.connect.client.records.Record;
+import androidx.health.connect.client.records.RestingHeartRateRecord;
+import androidx.health.connect.client.records.SleepSessionRecord;
+import androidx.health.connect.client.records.StepsRecord;
 import androidx.health.connect.client.records.WeightRecord;
 import androidx.health.connect.client.records.metadata.Metadata;
 import androidx.health.connect.client.request.ReadRecordsRequest;
@@ -69,6 +72,7 @@ import org.json.JSONObject;
  *   await HC.requestPermissions({ read: ['heartRate'], write: [] });  // { granted, read: { heartRate, weight } }
  *   await HC.readHeartRate({ from, to });   // { samples: [[ms, bpm]], origins: [package] }
  *   await HC.readWeights({ since });        // { records: [{ t, kg, id, origin, clientId }] }
+ *   await HC.readDaily({ since });          // { origins, steps, sleep, rhr } (steps, sleep, resting heart rate)
  * Foreground only: no READ_HEALTH_DATA_IN_BACKGROUND. Without READ_HEALTH_DATA_HISTORY Health
  * Connect gives 30 days back from the first grant, plenty for the workout just done; weigh-ins
  * ask for it too (read: ['weight', 'history']) where Health Connect has the feature, which
@@ -83,6 +87,9 @@ public class HealthConnectPlugin extends Plugin {
     private static final String WRITE_WEIGHT = "android.permission.health.WRITE_WEIGHT";
     private static final String READ_HEART_RATE = "android.permission.health.READ_HEART_RATE";
     private static final String READ_WEIGHT = "android.permission.health.READ_WEIGHT";
+    private static final String READ_STEPS = "android.permission.health.READ_STEPS";
+    private static final String READ_SLEEP = "android.permission.health.READ_SLEEP";
+    private static final String READ_RESTING_HR = "android.permission.health.READ_RESTING_HEART_RATE";
     private static final String READ_HISTORY = "android.permission.health.READ_HEALTH_DATA_HISTORY";
     // Records per page when reading, and pages at most: a few hours of heart rate fit easily.
     private static final int PAGE = 1000;
@@ -314,6 +321,70 @@ public class HealthConnectPlugin extends Plugin {
         });
     }
 
+    /**
+     * The daily numbers since `since` (ms), as plain arrays; JS decides what a day is and which
+     * app's numbers count (lib/health-daily.js). Steps as [start, end, count, origin], sleep
+     * sessions as { s, e, o, st: [[start, end, stage]] }, resting heart rate as [time, bpm,
+     * origin]; `origin` is a place in `origins`. Each needs its own permission: one that was not
+     * granted is left out, so a partial grant still reads the rest.
+     */
+    @PluginMethod
+    public void readDaily(PluginCall call) {
+        if (!"available".equals(sdkStatus())) {
+            call.reject("Health Connect is not available", "unavailable");
+            return;
+        }
+        Long since = millis(call, "since");
+        if (since == null) {
+            call.reject("since is needed", "failed");
+            return;
+        }
+        worker.execute(() -> {
+            try {
+                Set<String> got = granted();
+                TimeRangeFilter range = TimeRangeFilter.after(Instant.ofEpochMilli(since));
+                List<String> origins = new ArrayList<>();
+                JSArray steps = new JSArray(), sleep = new JSArray(), rhr = new JSArray();
+                if (got.contains(READ_STEPS)) {
+                    for (StepsRecord r : read(StepsRecord.class, range)) {
+                        steps.put(new JSArray().put(r.getStartTime().toEpochMilli()).put(r.getEndTime().toEpochMilli())
+                                .put(r.getCount()).put(HealthRead.originIndex(origins, r.getMetadata().getDataOrigin().getPackageName())));
+                    }
+                }
+                if (got.contains(READ_SLEEP)) {
+                    for (SleepSessionRecord r : read(SleepSessionRecord.class, range)) {
+                        JSObject o = new JSObject();
+                        o.put("s", r.getStartTime().toEpochMilli());
+                        o.put("e", r.getEndTime().toEpochMilli());
+                        o.put("o", HealthRead.originIndex(origins, r.getMetadata().getDataOrigin().getPackageName()));
+                        JSArray stages = new JSArray();
+                        for (SleepSessionRecord.Stage st : r.getStages()) {
+                            stages.put(new JSArray().put(st.getStartTime().toEpochMilli()).put(st.getEndTime().toEpochMilli()).put(st.getStage()));
+                        }
+                        o.put("st", stages);
+                        sleep.put(o);
+                    }
+                }
+                if (got.contains(READ_RESTING_HR)) {
+                    for (RestingHeartRateRecord r : read(RestingHeartRateRecord.class, range)) {
+                        rhr.put(new JSArray().put(r.getTime().toEpochMilli()).put(r.getBeatsPerMinute())
+                                .put(HealthRead.originIndex(origins, r.getMetadata().getDataOrigin().getPackageName())));
+                    }
+                }
+                JSObject out = new JSObject();
+                out.put("origins", new JSArray(origins));
+                out.put("steps", steps);
+                out.put("sleep", sleep);
+                out.put("rhr", rhr);
+                call.resolve(out);
+            } catch (SecurityException e) {
+                call.reject(e.getMessage(), "permission");
+            } catch (Exception e) {
+                call.reject(e.getMessage(), "failed");
+            }
+        });
+    }
+
     // Every page of one record type in the window, oldest first.
     @SuppressWarnings("unchecked")
     private <T extends Record> List<T> read(Class<T> type, TimeRangeFilter range) throws InterruptedException {
@@ -358,6 +429,9 @@ public class HealthConnectPlugin extends Plugin {
         JSObject r = new JSObject();
         r.put("heartRate", granted.contains(READ_HEART_RATE));
         r.put("weight", granted.contains(READ_WEIGHT));
+        r.put("steps", granted.contains(READ_STEPS));
+        r.put("sleep", granted.contains(READ_SLEEP));
+        r.put("restingHeartRate", granted.contains(READ_RESTING_HR));
         r.put("history", granted.contains(READ_HISTORY));
         return r;
     }

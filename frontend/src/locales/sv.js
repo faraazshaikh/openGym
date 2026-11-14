@@ -3699,4 +3699,10 @@ export default {
   "Your webhooks stop sending while Integrations is off. They stay set up.": "Dina webhooks skickar inget medan ”Integrationer” är av. De förblir inställda.",
   "{0} of {1} modules on.": "{0} av {1} moduler på.",
   "{0} stops syncing while Health is off. Nothing is disconnected, and it catches up once Health is back.": "{0} slutar synka medan ”Hälsa” är av. Inget kopplas bort, och allt kommer ikapp när ”Hälsa” är tillbaka.",
+  "Steps": "Steg",
+  "Sleep": "Sömn",
+  "Resting heart rate": "Vilopuls",
+  "Daily average": "Dagligt snitt",
+  "Steps, sleep and resting heart rate": "Steg, sömn och vilopuls",
+  "Mi Fitness, Zepp, Google Fit and others save these on your phone. Shown in the calendar, on this phone only.": "Mi Fitness, Zepp, Google Fit och andra appar sparar dem på din telefon. Visas i kalendern, bara på den här telefonen.",
 }

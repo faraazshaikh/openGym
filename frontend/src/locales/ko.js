@@ -3652,4 +3652,10 @@ export default {
   "Your webhooks stop sending while Integrations is off. They stay set up.": "'연동'이 꺼져 있는 동안 웹훅이 전송되지 않아요. 설정은 그대로예요.",
   "{0} of {1} modules on.": "모듈 {1}개 중 {0}개 켜짐.",
   "{0} stops syncing while Health is off. Nothing is disconnected, and it catches up once Health is back.": "'건강'이 꺼져 있는 동안 {0} 동기화가 멈춰요. 연결은 끊기지 않고, '건강'을 다시 켜면 밀린 걸 따라잡아요.",
+  "Steps": "걸음 수",
+  "Sleep": "수면",
+  "Resting heart rate": "안정 시 심박수",
+  "Daily average": "일일 평균",
+  "Steps, sleep and resting heart rate": "걸음 수, 수면, 안정 시 심박수",
+  "Mi Fitness, Zepp, Google Fit and others save these on your phone. Shown in the calendar, on this phone only.": "Mi Fitness, Zepp, Google Fit 등의 앱이 휴대폰에 저장한 값입니다. 캘린더에 표시되며 이 휴대폰에만 보관됩니다.",
 }

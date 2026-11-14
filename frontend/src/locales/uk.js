@@ -3649,4 +3649,10 @@ export default {
   "Your webhooks stop sending while Integrations is off. They stay set up.": "Поки «Інтеграції» вимкнено, твої вебхуки нічого не надсилають. Вони лишаються налаштованими.",
   "{0} of {1} modules on.": "Увімкнено модулів: {0} з {1}.",
   "{0} stops syncing while Health is off. Nothing is disconnected, and it catches up once Health is back.": "Поки «Здоров'я» вимкнено, {0} не синхронізується. Нічого не від’єднується, і все наздожене, щойно «Здоров'я» повернеться.",
+  "Steps": "Кроки",
+  "Sleep": "Сон",
+  "Resting heart rate": "Пульс у спокої",
+  "Daily average": "Середнє за день",
+  "Steps, sleep and resting heart rate": "Кроки, сон і пульс у спокої",
+  "Mi Fitness, Zepp, Google Fit and others save these on your phone. Shown in the calendar, on this phone only.": "Mi Fitness, Zepp, Google Fit та інші застосунки зберігають їх на телефоні. Показуються в календарі, лише на цьому телефоні.",
 }

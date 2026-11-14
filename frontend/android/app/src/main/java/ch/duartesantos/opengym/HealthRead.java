@@ -61,11 +61,22 @@ final class HealthRead {
         return out;
     }
 
+    /** The place of `origin` in `origins` (added when it is new): records name their app by number. */
+    static int originIndex(List<String> origins, String origin) {
+        int i = origins.indexOf(origin);
+        if (i >= 0) return i;
+        origins.add(origin);
+        return origins.size() - 1;
+    }
+
     /** The JS names of the read permissions, as the manifest declares them. */
     static String readPermission(String name) {
         switch (name) {
             case "heartRate": return "android.permission.health.READ_HEART_RATE";
             case "weight": return "android.permission.health.READ_WEIGHT";
+            case "steps": return "android.permission.health.READ_STEPS";
+            case "sleep": return "android.permission.health.READ_SLEEP";
+            case "restingHeartRate": return "android.permission.health.READ_RESTING_HEART_RATE";
             // Not a data type: data older than 30 days before the first grant (#801).
             case "history": return "android.permission.health.READ_HEALTH_DATA_HISTORY";
             default: return null;

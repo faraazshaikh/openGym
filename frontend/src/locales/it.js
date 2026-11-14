@@ -3652,4 +3652,10 @@ export default {
   "Your webhooks stop sending while Integrations is off. They stay set up.": "I tuoi webhook smettono di inviare mentre «Integrazioni» è disattivato. Restano configurati.",
   "{0} of {1} modules on.": "{0} moduli attivi su {1}.",
   "{0} stops syncing while Health is off. Nothing is disconnected, and it catches up once Health is back.": "{0} smette di sincronizzare mentre «Salute» è disattivato. Non si scollega niente e recupera tutto quando «Salute» torna attivo.",
+  "Steps": "Passi",
+  "Sleep": "Sonno",
+  "Resting heart rate": "Frequenza cardiaca a riposo",
+  "Daily average": "Media giornaliera",
+  "Steps, sleep and resting heart rate": "Passi, sonno e frequenza cardiaca a riposo",
+  "Mi Fitness, Zepp, Google Fit and others save these on your phone. Shown in the calendar, on this phone only.": "Mi Fitness, Zepp, Google Fit e altre app li salvano sul telefono. Li vedi nel calendario, solo su questo telefono.",
 }

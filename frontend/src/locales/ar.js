@@ -3707,4 +3707,10 @@ export default {
   "Your webhooks stop sending while Integrations is off. They stay set up.": "لا يرسل الويب هوك شيئًا ما دامت «التكاملات» متوقفة. يبقى مُعدًّا.",
   "{0} of {1} modules on.": "{0} من {1} وحدات مفعّلة.",
   "{0} stops syncing while Health is off. Nothing is disconnected, and it catches up once Health is back.": "يتوقف {0} عن المزامنة ما دامت «الصحة» متوقفة. لا يُفصل شيء، ويلحق بكل شيء عند عودة «الصحة».",
+  "Steps": "الخطوات",
+  "Sleep": "النوم",
+  "Resting heart rate": "معدل نبض القلب أثناء الراحة",
+  "Daily average": "المتوسط اليومي",
+  "Steps, sleep and resting heart rate": "الخطوات والنوم ونبض القلب أثناء الراحة",
+  "Mi Fitness, Zepp, Google Fit and others save these on your phone. Shown in the calendar, on this phone only.": "تحفظها تطبيقات مثل Mi Fitness وZepp وGoogle Fit على هاتفك. تظهر في التقويم، وعلى هذا الهاتف فقط.",
 }

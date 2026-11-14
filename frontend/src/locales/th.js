@@ -3663,4 +3663,10 @@ export default {
   "Your webhooks stop sending while Integrations is off. They stay set up.": "เว็บฮุกจะหยุดส่งระหว่างที่ \"การเชื่อมต่อ\" ปิดอยู่ แต่ยังตั้งค่าไว้เหมือนเดิม",
   "{0} of {1} modules on.": "เปิดอยู่ {0} จาก {1} โมดูล",
   "{0} stops syncing while Health is off. Nothing is disconnected, and it catches up once Health is back.": "{0} จะหยุดซิงก์ระหว่างที่ \"สุขภาพ\" ปิดอยู่ ไม่มีอะไรถูกตัดการเชื่อมต่อ และจะตามทันเมื่อเปิด \"สุขภาพ\" อีกครั้ง",
+  "Steps": "จำนวนก้าว",
+  "Sleep": "การนอนหลับ",
+  "Resting heart rate": "อัตราการเต้นของหัวใจขณะพัก",
+  "Daily average": "ค่าเฉลี่ยรายวัน",
+  "Steps, sleep and resting heart rate": "จำนวนก้าว การนอนหลับ และอัตราการเต้นของหัวใจขณะพัก",
+  "Mi Fitness, Zepp, Google Fit and others save these on your phone. Shown in the calendar, on this phone only.": "Mi Fitness, Zepp, Google Fit และแอปอื่น ๆ บันทึกข้อมูลเหล่านี้ไว้ในโทรศัพท์ของคุณ แสดงในปฏิทิน และเก็บไว้ในโทรศัพท์เครื่องนี้เท่านั้น",
 }

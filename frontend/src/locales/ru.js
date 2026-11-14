@@ -3656,4 +3656,10 @@ export default {
   "Your webhooks stop sending while Integrations is off. They stay set up.": "Пока «Интеграции» выключены, твои вебхуки ничего не отправляют. Они остаются настроенными.",
   "{0} of {1} modules on.": "Включено модулей: {0} из {1}.",
   "{0} stops syncing while Health is off. Nothing is disconnected, and it catches up once Health is back.": "Пока «Здоровье» выключено, {0} не синхронизируется. Ничего не отключается, и всё догонится, когда «Здоровье» вернётся.",
+  "Steps": "Шаги",
+  "Sleep": "Сон",
+  "Resting heart rate": "Пульс в покое",
+  "Daily average": "Среднее за день",
+  "Steps, sleep and resting heart rate": "Шаги, сон и пульс в покое",
+  "Mi Fitness, Zepp, Google Fit and others save these on your phone. Shown in the calendar, on this phone only.": "Mi Fitness, Zepp, Google Fit и другие приложения сохраняют их в телефоне. Показываются в календаре, только на этом телефоне.",
 }
