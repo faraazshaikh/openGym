@@ -1,0 +1,14 @@
+# Layered on top of the repo's docker-compose.yml for a VPS that already runs other things.
+#   docker compose -f docker-compose.yml -f contrib/vps/docker-compose.vps.yml up -d --build
+#
+# What it changes: the web container is published on the loopback address only (127.0.0.1:8085), so
+# nothing reaches it except your own reverse proxy, and the stack builds from this fork's source
+# instead of pulling the upstream prebuilt images. `!override` needs Docker Compose 2.24.4 or newer
+# (check with `docker compose version`).
+services:
+  api:
+    image: fitrix-api:local
+  web:
+    image: fitrix-web:local
+    ports: !override
+      - "127.0.0.1:${FITRIX_PORT:-8085}:80"

@@ -1,0 +1,8 @@
+# For a VPS where Caddy already runs. Add this block to the existing Caddyfile and reload it.
+# Caddy gets and renews the certificate on its own.
+YOUR_DOMAIN {
+    request_body {
+        max_size 48MB
+    }
+    reverse_proxy 127.0.0.1:8085
+}
