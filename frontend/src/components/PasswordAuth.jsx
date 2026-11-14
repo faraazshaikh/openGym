@@ -186,7 +186,7 @@ export function PasswordRegisterForm({ close, inviteOnly, name, setName, code, s
     <input className="input" name="username" autoComplete="username" placeholder={t('Your name')} maxLength={40}
       value={name} onChange={e => setName(e.target.value)} {...field} />
     <div style={{ height: 10 }} />
-    <input className="input" type="email" name="email" autoComplete="email" inputMode="email" placeholder={t('E-mail (optional)')} maxLength={254}
+    <input className="input" type="email" name="email" autoComplete="email" inputMode="email" placeholder={inviteOnly ? t('E-mail address') : t('E-mail (optional)')} maxLength={254}
       value={email} onChange={e => setEmail(e.target.value)} {...field} />
     <div className="dim small" style={{ marginTop: 6 }}>{t('Lets you sign in with it instead of your name. Nothing is ever sent to it.')}</div>
     {inviteOnly && <>

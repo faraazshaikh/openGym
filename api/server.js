@@ -157,6 +157,19 @@ db.users = db.users || [];
 db.creds = db.creds || [];
 db.subs = db.subs || [];
 db.invites = db.invites || [];
+
+// Access that ends. An invite can carry a number of months (invite.months, none = indefinite),
+// counted from sign-up: the account then gets user.expiresAt. Once it has passed the account is
+// locked out like a disabled one (its data stays), until an admin extends it or makes it indefinite.
+const isExpired = u => !!(u && u.expiresAt && Date.parse(u.expiresAt) <= Date.now());
+const isLocked = u => !!(u && (u.disabled || isExpired(u)));
+const lockedReply = u => (u.disabled
+  ? { error: 'this account has been disabled', code: 'disabled' }
+  : { error: 'your access has ended, ask the admin to extend it', code: 'expired' });
+// An invite made for an address only works for that address (invite.email is stored normalized).
+const inviteEmailOk = (inv, email) => !inv || !inv.email || normalizeEmail(email) === inv.email;
+const INVITE_EMAIL = { error: 'this invite was made for a different email address', code: 'invite-email' };
+const addMonths = (iso, n) => { const d = new Date(iso); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString(); };
 db.deviceLinks = db.deviceLinks || [];   // unused one-time device links, hashed (device-link.js)
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
 // One owner per instance, any number of admins. Admins run the place day to day (users, invites,
@@ -501,7 +514,7 @@ setInterval(() => {
   // Server time, read through Date.now() so the tests' clock moves it too.
   const wrappedYear = wrappedPushYear(new Date(Date.now()));
   for (const user of db.users) {
-    if (user.disabled) continue;            // locked out everywhere, reminders included
+    if (isLocked(user)) continue;           // locked out everywhere, reminders included
     if (!db.subs.some(s => s.userId === user.id)) continue;
     // One user's state file is one user's problem: a shape this tick cannot read is logged and
     // skipped, not allowed to take the process — and everyone else's reminders — down with it.
@@ -623,7 +636,7 @@ function sessionUser(tok) {
   if (!uid || +exp < Date.now()) return null;
   const user = db.users.find(u => u.id === uid) || null;
   if (!user) return null;
-  if (user.disabled) return null;           // disabled accounts are locked out everywhere
+  if (isLocked(user)) return null;          // disabled and expired accounts are locked out everywhere
   // Missing third field = pre-versioning cookie = version 0. Anything non-numeric is a malformed
   // payload (it still had to pass the HMAC, so this is belt-and-braces) and is refused outright.
   const claimed = ver === undefined ? 0 : Number(ver);
@@ -795,7 +808,7 @@ function watchLinkFor(req) {
   if (!auth.startsWith('Bearer ')) return null;
   const link = findWatchLink(db, auth.slice(7).trim(), uid => {
     const u = db.users.find(x => x.id === uid);
-    return u && !u.disabled ? sessionVersion(u) : null;
+    return u && !isLocked(u) ? sessionVersion(u) : null;
   });
   if (link && touchWatchLink(link)) saveDb();
   return link;
@@ -1378,10 +1391,10 @@ const passwordRoutes = {
       check.void();
       return json(res, 401, WRONG);
     }
-    if (user.disabled) {
+    if (isLocked(user)) {
       check.void();
-      audit(req, 'auth.password.fail', { ok: false, user, msg: 'account-disabled' });
-      return json(res, 403, { error: 'this account has been disabled', code: 'disabled' });
+      audit(req, 'auth.password.fail', { ok: false, user, msg: user.disabled ? 'account-disabled' : 'account-expired' });
+      return json(res, 403, lockedReply(user));
     }
     check.ok();
     // A hash made with older parameters is replaced now, while the password is at hand.
@@ -1410,6 +1423,11 @@ const passwordRoutes = {
       audit(req, 'auth.register.denied', { ok: false, name, msg: 'invite-rejected' });
       strikeAddress(req, 'signup');
       return json(res, 403, { error: 'a valid invite code is required', code: 'invite' });
+    }
+    if (INVITE_ONLY && !inviteEmailOk(invite(), body.email)) {
+      audit(req, 'auth.register.denied', { ok: false, name, msg: 'invite-email' });
+      strikeAddress(req, 'signup');
+      return json(res, 403, INVITE_EMAIL);
     }
     const problem = passwordProblem(body.password, name);
     if (problem) return policyError(res, problem);
@@ -1442,6 +1460,10 @@ const passwordRoutes = {
         audit(req, 'auth.register.fail', { ok: false, name, msg: 'invite-invalid' });
         return json(res, 403, { error: 'invite code is no longer valid, ask for a new one', code: 'invite' });
       }
+      if (!inviteEmailOk(inv, body.email)) {
+        audit(req, 'auth.register.fail', { ok: false, name, msg: 'invite-email' });
+        return json(res, 403, INVITE_EMAIL);
+      }
     }
     if (nameTaken(name)) {
       // No name in the row: it is an address, and the log keeps none (maskEmail is for owners).
@@ -1452,7 +1474,7 @@ const passwordRoutes = {
     if (email && emailTaken(email)) return emailRefused();
     const created = new Date().toISOString();
     const user = { id: crypto.randomBytes(12).toString('base64url'), name, created, pw: { h, set: created }, ...(email ? { email } : {}) };
-    if (inv) { user.invitedBy = inv.code; inv.usedBy = user.id; inv.usedAt = created; }
+    if (inv) { user.invitedBy = inv.code; inv.usedBy = user.id; inv.usedAt = created; if (inv.months > 0) user.expiresAt = addMonths(created, inv.months); }
     claimFirstAdmin(req, user);
     db.users.push(user);
     saveDb();
@@ -1616,9 +1638,9 @@ const passwordRoutes = {
       audit(req, 'auth.password.reset', { ok: false, msg: 'reset-invalid' });
       return invalid();
     }
-    if (user.disabled) {
-      audit(req, 'auth.password.reset', { ok: false, user, msg: 'account-disabled' });
-      return json(res, 403, { error: 'this account has been disabled', code: 'disabled' });
+    if (isLocked(user)) {
+      audit(req, 'auth.password.reset', { ok: false, user, msg: user.disabled ? 'account-disabled' : 'account-expired' });
+      return json(res, 403, lockedReply(user));
     }
     // The code is good and stays good until a password is actually set with it.
     const problem = passwordProblem(body.next, user.name);
@@ -1851,7 +1873,7 @@ const passkeyRoutes = {
       return json(res, 400, LINK_INVALID);
     }
     const user = db.users.find(u => u.id === link.userId);
-    if (!user || user.disabled) {
+    if (!user || isLocked(user)) {
       audit(req, 'auth.link.fail', { ok: false, uid: link.userId, msg: 'user-unavailable' });
       return json(res, 400, LINK_INVALID);
     }
@@ -1887,7 +1909,7 @@ const passkeyRoutes = {
     // Everything above awaited: the code may have been used, replaced or dropped since (a sign-out
     // everywhere, a new password, a disable), and the profile may be gone or locked.
     const user = db.users.find(u => u.id === link.userId);
-    if (findDeviceLink(db, code) !== link || !user || user.disabled) {
+    if (findDeviceLink(db, code) !== link || !user || isLocked(user)) {
       audit(req, 'auth.link.fail', { ok: false, uid: link.userId, msg: 'link-invalid' });
       return json(res, 400, LINK_INVALID);
     }
@@ -2139,10 +2161,15 @@ const routes = {
     const name = text(body.name).trim().slice(0, 40);
     if (!name) return json(res, 400, { error: 'name required' });
     const code = text(body.code).trim().toUpperCase();
-    if (INVITE_ONLY && !db.invites.some(i => i.code === code && !i.usedBy && !i.revoked)) {
+    const openInvite = db.invites.find(i => i.code === code && !i.usedBy && !i.revoked);
+    if (INVITE_ONLY && !openInvite) {
       // The rejected code itself is never recorded — a near-miss guess in the log is a liability.
       audit(req, 'auth.register.denied', { ok: false, name, msg: 'invite-rejected' });
       return json(res, 403, { error: 'a valid invite code is required', code: 'invite' });
+    }
+    if (INVITE_ONLY && !inviteEmailOk(openInvite, body.email)) {
+      audit(req, 'auth.register.denied', { ok: false, name, msg: 'invite-email' });
+      return json(res, 403, INVITE_EMAIL);
     }
     const uid = crypto.randomBytes(12).toString('base64url');
     const options = await generateRegistrationOptions({
@@ -2196,7 +2223,7 @@ const routes = {
       }
     }
     const user = { id: c.uid, name: c.name, created: new Date().toISOString() };
-    if (invite) { user.invitedBy = invite.code; invite.usedBy = user.id; invite.usedAt = user.created; }
+    if (invite) { user.invitedBy = invite.code; invite.usedBy = user.id; invite.usedAt = user.created; if (invite.months > 0) user.expiresAt = addMonths(user.created, invite.months); }
     claimFirstAdmin(req, user);
     db.users.push(user);
     db.creds.push({
@@ -2266,9 +2293,9 @@ const routes = {
       audit(req, 'auth.login.fail', { ok: false, uid: cred.userId, msg: 'user-missing' });
       return json(res, 500, { error: 'user missing' });
     }
-    if (user.disabled) {
-      audit(req, 'auth.login.fail', { ok: false, user, msg: 'account-disabled' });
-      return json(res, 403, { error: 'this account has been disabled', code: 'disabled' });
+    if (isLocked(user)) {
+      audit(req, 'auth.login.fail', { ok: false, user, msg: user.disabled ? 'account-disabled' : 'account-expired' });
+      return json(res, 403, lockedReply(user));
     }
     audit(req, 'auth.login.ok', { user });
     json(res, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(user) });
@@ -2376,7 +2403,7 @@ const routes = {
       return json(res, 400, { error: 'invalid or expired code', code: 'pair-invalid' });
     }
     const user = db.users.find(u => u.id === p.uid);
-    if (!user || user.disabled) {
+    if (!user || isLocked(user)) {
       audit(req, 'auth.pair.fail', { ok: false, uid: p.uid, msg: 'user-unavailable' });
       return json(res, 400, { error: 'invalid or expired code', code: 'pair-invalid' });
     }
@@ -2401,7 +2428,7 @@ const routes = {
     if (addressPaused(req, res, 'watch')) return;
     const uid = takeWatchCode(watchCodes, text(body.code));
     const user = uid && db.users.find(u => u.id === uid);
-    if (!user || user.disabled) {
+    if (!user || isLocked(user)) {
       strikeAddress(req, 'watch');
       auditFail(req, 'auth.watch.fail', { ok: false, msg: 'code-invalid' });
       return json(res, 400, { error: 'invalid or expired code', code: 'pair-invalid' });
@@ -2766,7 +2793,7 @@ const routes = {
       const last = workouts[workouts.length - 1];
       return {
         id: u.id, name: u.name, created: u.created || null,
-        disabled: !!u.disabled, admin: isAdmin(u), owner: isOwner(u), invitedBy: u.invitedBy || null,
+        disabled: !!u.disabled, expiresAt: u.expiresAt || null, expired: isExpired(u), admin: isAdmin(u), owner: isOwner(u), invitedBy: u.invitedBy || null,
         workouts: workouts.length,
         lastWorkout: last ? last.d : null,
         lastSync: lastSyncOf(u, S),
@@ -2789,7 +2816,7 @@ const routes = {
     const S = readState(u.id) || {};
     json(res, 200, {
       user: {
-        id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, admin: isAdmin(u), owner: isOwner(u), invitedBy: u.invitedBy || null,
+        id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, expiresAt: u.expiresAt || null, expired: isExpired(u), admin: isAdmin(u), owner: isOwner(u), invitedBy: u.invitedBy || null,
         // Only on an instance with password sign-in: whether they have one, and until when an
         // unused reset code is good.
         ...(PASSWORD_LOGIN ? { password: hasPassword(u), email: u.email || null, resetUntil: u.pwReset?.exp > Date.now() ? u.pwReset.exp : null } : {}),
@@ -2913,7 +2940,18 @@ const routes = {
     // code is good, so the code itself has to be the thing that isn't worth guessing. Codes already
     // in db.json keep working — validation is an exact string compare, never a length or format check.
     do { code = crypto.randomBytes(8).toString('hex').toUpperCase(); } while (db.invites.some(i => i.code === code));
-    const invite = { code, note: text(body.note).slice(0, 60), createdBy: admin.id, created: new Date().toISOString() };
+    // Who it is for, their address (the code then only works with it) and how long they get after
+    // signing up: a number of months, or none = indefinite. All optional here, so an older client
+    // that only sends a note still works; the admin dashboard asks for all three.
+    const name = text(body.name || body.note).trim().slice(0, 60);
+    const hasEmail = typeof body.email === 'string' && body.email.trim() !== '';
+    const email = hasEmail ? normalizeEmail(body.email) : null;
+    if (hasEmail && !email) return json(res, 400, EMAIL_ERRORS.invalid);
+    const months = body.months === undefined || body.months === null || body.months === 'indefinite' ? null : Number(body.months);
+    if (months !== null && !(Number.isInteger(months) && months >= 1 && months <= 120)) {
+      return json(res, 400, { error: 'months must be a whole number from 1 to 120, or left out for indefinite', code: 'months' });
+    }
+    const invite = { code, note: name, ...(name ? { name } : {}), ...(email ? { email } : {}), months, createdBy: admin.id, created: new Date().toISOString() };
     db.invites.push(invite);
     saveDb();
     audit(req, 'admin.invite.create', { user: admin, msg: code });
@@ -2930,6 +2968,29 @@ const routes = {
     saveDb();
     audit(req, 'admin.invite.revoke', { user: admin, msg: inv.code });
     json(res, 200, { ok: true });
+  },
+
+  // How long someone keeps access: `months` counts from now, or from the end of what they have
+  // left if that is later; null makes it indefinite. An expired account comes back at once.
+  'POST /api/admin/user/validity': async (req, res) => {
+    const admin = requireAdmin(req, res); if (!admin) return;
+    const body = await readBody(req);
+    const u = db.users.find(x => x.id === text(body.id));
+    if (!u) return json(res, 404, { error: 'no such user' });
+    if (isOwner(u)) return json(res, 400, { error: 'the owner never expires' });
+    if (body.months === null || body.months === 'indefinite') {
+      delete u.expiresAt;
+    } else {
+      const months = Number(body.months);
+      if (!(Number.isInteger(months) && months >= 1 && months <= 120)) {
+        return json(res, 400, { error: 'months must be a whole number from 1 to 120, or null for indefinite', code: 'months' });
+      }
+      const from = u.expiresAt && Date.parse(u.expiresAt) > Date.now() ? u.expiresAt : new Date().toISOString();
+      u.expiresAt = addMonths(from, months);
+    }
+    saveDb();
+    audit(req, 'admin.user.validity', { user: admin, target: u, msg: u.expiresAt || 'indefinite' });
+    json(res, 200, { ok: true, id: u.id, expiresAt: u.expiresAt || null, expired: isExpired(u) });
   },
 
   /* ---------- activity log ---------- */
@@ -3002,7 +3063,7 @@ coachJobs.setProposalHook((uid, pending) => {
   });
 });
 integrations.start();
-startCadence({ users: () => db.users.filter(u => !u.disabled), userNow, skip: uid => !stateSummary(uid)?.consent });
+startCadence({ users: () => db.users.filter(u => !isLocked(u)), userNow, skip: uid => !stateSummary(uid)?.consent });
 startWarmup();
 
 // node's requestTimeout is one number for every route, and it is half an hour (below) for the
@@ -3143,7 +3204,7 @@ startAdminSocket({
     if (!found.length) return { error: id ? 'no profile with that id' : 'no profile with that name' };
     if (found.length > 1) return { error: 'several profiles have that name: pick one with --id', matches: found.map(row) };
     const u = found[0];
-    if (u.disabled) return { error: 'that profile is disabled: enable it in the admin dashboard first' };
+    if (isLocked(u)) return { error: 'that profile is disabled or its access has ended: fix that in the admin dashboard first' };
     const { code, link } = issueRecovery(CLI_REQ, u, null);
     return { ...row(u), code, expires: link.exp };
   }

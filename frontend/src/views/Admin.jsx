@@ -8,7 +8,7 @@ import { auditCat, auditLine, fmtWhen } from '../lib/audit.js'
 import { workoutVolume, setsDone } from '../lib/history.js'
 import { confirmSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
-import { Button } from '../components/ui.jsx'
+import { Button, TextField } from '../components/ui.jsx'
 import AdminCoach from './AdminCoach.jsx'
 import '../admin.css'
 
@@ -85,6 +85,11 @@ function UserDetail({ id, viewerOwner, onChanged, close }) {
       .then(() => { toast('Account deleted'); onChanged(); close() })
       .catch(e => toast(e.message))
   }
+  const setValidity = months => {
+    api('/api/admin/user/validity', { method: 'POST', body: JSON.stringify({ id: u.id, months }) })
+      .then(r => { toast(r.expiresAt ? 'Access ' + untilText(r.expiresAt, false) : 'Access is now indefinite'); onChanged(); close() })
+      .catch(e => toast(e.message))
+  }
   const setDisabled = disabled => {
     api('/api/admin/user/disable', { method: 'POST', body: JSON.stringify({ id: u.id, disabled }) })
       .then(() => { toast(disabled ? 'User disabled' : 'User enabled'); onChanged(); close() })
@@ -131,6 +136,8 @@ function UserDetail({ id, viewerOwner, onChanged, close }) {
     <div className="row" style={{ gap: 6, flexWrap: 'wrap', margin: '8px 0 12px' }}>
       {u.owner ? <span className="adm-pill acc">owner</span> : u.admin && <span className="adm-pill acc">admin</span>}
       {u.disabled && <span className="adm-pill bad">disabled</span>}
+      {u.expired && <span className="adm-pill bad">access ended</span>}
+      {u.expiresAt && !u.expired && <span className="adm-pill warn">{untilText(u.expiresAt, false)}</span>}
       {u.invitedBy && <span className="adm-pill">invite {u.invitedBy}</span>}
       {u.password && <span className="adm-pill">password</span>}
       {/* The sign-in e-mail (password instances only): shown to admins and nobody else. */}
@@ -157,6 +164,16 @@ function UserDetail({ id, viewerOwner, onChanged, close }) {
         <button className="btn" style={{ margin: '14px 0 4px' }} onClick={makeOwner}>Make owner</button>
         <div className="adm-hint">There is one owner. Handing it over makes you a regular admin.</div>
       </>}
+    </>}
+    {!u.owner && <>
+      <h4 className="sec">Access</h4>
+      <div className="adm-hint" style={{ marginTop: 0 }}>{u.expiresAt
+        ? 'Their access ' + (u.expired ? 'ended ' : 'runs until ') + fmtDate(u.expiresAt.slice(0, 10), true, true) + '.' + (u.expired ? ' They are locked out and their data is kept. Add time to bring them back.' : ' Adding months extends it from that date.')
+        : 'Their access is indefinite: it stays until you disable or delete the account.'}</div>
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap', margin: '8px 0 4px' }}>
+        {[1, 3, 6, 12].map(m => <button key={m} className={'btn' + (u.expired && m === 1 ? ' primary' : '')} onClick={() => setValidity(m)}>+{m} {m === 1 ? 'month' : 'months'}</button>)}
+        {u.expiresAt && <button className="btn" onClick={() => confirmSheet({ title: 'Make ' + u.name + ' indefinite?', message: 'They keep access until you disable or delete the account.', confirmText: 'Make indefinite', onConfirm: () => setValidity(null) })}>Make indefinite</button>}
+      </div>
     </>}
     {!u.admin && <>
       <button className={'btn ' + (u.disabled ? 'primary' : 'danger')} style={{ margin: '12px 0 4px' }}
@@ -206,11 +223,78 @@ function UserDetail({ id, viewerOwner, onChanged, close }) {
   </>
 }
 
+// "3 months", "1 month", "Indefinite": what an invite or an account is good for.
+const monthsText = m => (m ? m + (m === 1 ? ' month' : ' months') : 'Indefinite')
+// An end date as "until 4 Mar 2027", or "ended 4 Mar 2027" once it has passed.
+const untilText = (iso, expired) => (expired ? 'ended ' : 'until ') + fmtDate(iso.slice(0, 10), true, true)
+
+// The form behind "New code": who it is for, the address it is tied to, how long they get once
+// they sign up. 1 month is what the box starts on; blank is not a choice, "Indefinite" is.
+function NewInviteSheet({ close, done }) {
+  const toast = useUI(s => s.toast)
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [validity, setValidity] = useState('1')      // '1'..'120' months, or 'indefinite'
+  const [busy, setBusy] = useState(false)
+  const months = validity === 'indefinite' ? null : Number(validity)
+  const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  const okMonths = months === null || (Number.isInteger(months) && months >= 1 && months <= 120)
+  const ready = name.trim() && okEmail && okMonths && !busy
+  const make = () => {
+    setBusy(true)
+    api('/api/admin/invites/new', { method: 'POST', body: JSON.stringify({ name: name.trim(), email: email.trim(), months }) })
+      .then(({ invite }) => { navigator.clipboard?.writeText(invite.code).catch(() => {}); done(); close(); openCodeSheet(invite) })
+      .catch(e => { setBusy(false); toast(e.message) })
+  }
+  const openCodeSheet = invite => useUI.getState().openSheet(c => <InviteCreatedSheet invite={invite} close={c} />, { locked: true })
+  return <>
+    <h3>New invite</h3>
+    <div className="adm-lead">Make a code for one person. It only works with the email you enter here, and the time they get starts when they sign up.</div>
+    <div className="adm-field">
+      <label>Name</label>
+      <TextField value={name} onChange={e => setName(e.target.value)} placeholder="Alex" maxLength={60} autoCapitalize="words" />
+    </div>
+    <div className="adm-field">
+      <label>Email</label>
+      <TextField value={email} onChange={e => setEmail(e.target.value)} placeholder="alex@example.com" inputMode="email" autoCapitalize="none" autoCorrect="off" />
+    </div>
+    <div className="adm-field">
+      <label>How long can they use it</label>
+      <select className="adm-select" value={validity === 'indefinite' ? 'indefinite' : [1, 2, 3, 6, 12, 24].includes(months) ? String(months) : 'other'}
+        onChange={e => setValidity(e.target.value === 'other' ? '4' : e.target.value)}>
+        {[1, 2, 3, 6, 12, 24].map(m => <option key={m} value={m}>{monthsText(m)}</option>)}
+        <option value="other">Another number of months…</option>
+        <option value="indefinite">Indefinite</option>
+      </select>
+    </div>
+    {validity !== 'indefinite' && ![1, 2, 3, 6, 12, 24].includes(months) && <div className="adm-field">
+      <label>Months</label>
+      <TextField type="number" min="1" max="120" inputMode="numeric" value={validity} onChange={e => setValidity(e.target.value)} />
+    </div>}
+    <div className="adm-hint">{months === null
+      ? 'Indefinite means they keep access until you disable or delete the account.'
+      : 'After ' + monthsText(months) + ' they are locked out and their data is kept. You can extend them any time.'}</div>
+    <div style={{ height: 12 }} />
+    <Button variant="primary" disabled={!ready} onClick={make}>Create invite</Button>
+  </>
+}
+
+function InviteCreatedSheet({ invite, close }) {
+  const toast = useUI(s => s.toast)
+  const copy = () => { navigator.clipboard?.writeText(invite.code).catch(() => {}); toast('Copied') }
+  return <>
+    <h3>Invite for {invite.name || 'them'}</h3>
+    <div className="adm-lead">Send {invite.name || 'them'} this code. On the sign-up page they enter it, and sign up with <b>{invite.email}</b>. It works once, for {invite.months ? monthsText(invite.months) + ' from the day they sign up' : 'as long as you keep the account (indefinite)'}. The code is copied.</div>
+    <button className="adm-code" style={{ fontSize: 'var(--fs-title2)', width: '100%', padding: '14px 0' }} onClick={copy} aria-label="copy code">{invite.code}</button>
+    <div style={{ height: 12 }} />
+    <Button variant="primary" onClick={close}>Done</Button>
+  </>
+}
+
 function InvitesCard({ invites, reload, inviteOnly }) {
   const toast = useUI(s => s.toast)
-  const gen = () => api('/api/admin/invites/new', { method: 'POST', body: '{}' })
-    .then(({ invite }) => { navigator.clipboard?.writeText(invite.code).catch(() => {}); toast('Code ' + invite.code + ' created & copied'); reload() })
-    .catch(e => toast(e.message))
+  const openSheet = useUI(s => s.openSheet)
+  const gen = () => openSheet(close => <NewInviteSheet close={close} done={reload} />)
   const revoke = code => confirmSheet({
     title: 'Revoke code ' + code + '?', message: 'Anyone who has it can no longer use it. People who already signed up with it are not affected.',
     confirmText: 'Revoke', danger: true,
@@ -225,13 +309,16 @@ function InvitesCard({ invites, reload, inviteOnly }) {
       <Button variant="primary" size="sm" onClick={gen} icon="plus">New code</Button></div>
     <div className="adm-lead">
       {inviteOnly
-        ? 'Sign-up is invite-only: someone needs one of these codes to create a profile. Each code works once.'
+        ? 'Sign-up is invite-only: someone needs one of these codes, and the email it was made for, to create a profile. Each code works once.'
         : 'Sign-up is open, so codes are optional here. They only record who invited whom.'}
     </div>
     {open.length ? <>
       <div className="adm-group-t">Unused · tap to copy</div>
       {open.map(i => <div key={i.code} className="row between" style={{ padding: '6px 0', borderBottom: 'var(--hair) solid var(--sep)' }}>
-        <button className="adm-code" onClick={() => copy(i.code)} aria-label={'copy ' + i.code}>{i.code}</button>
+        <div>
+          <button className="adm-code" onClick={() => copy(i.code)} aria-label={'copy ' + i.code}>{i.code}</button>
+          <div className="dim" style={{ fontSize: 'var(--fs-caption2)', marginTop: 3 }}>{[i.name || i.note, i.email, monthsText(i.months)].filter(Boolean).join(' · ')}</div>
+        </div>
         <div className="row" style={{ gap: 4 }}>
           <button className="iconbtn adm-iconbtn" onClick={() => copy(i.code)} aria-label="copy"><Icon name="copy" /></button>
           <button className="iconbtn adm-iconbtn" style={{ color: 'var(--red)' }} onClick={() => revoke(i.code)} aria-label="revoke"><Icon name="trash" /></button>
@@ -241,10 +328,10 @@ function InvitesCard({ invites, reload, inviteOnly }) {
     {used.length ? <>
       <div className="adm-group-t" style={{ marginTop: open.length ? 12 : 0 }}>Already used</div>
       {used.map(i => <div key={i.code} className="row between dim" style={{ padding: '6px 0', fontSize: 'var(--fs-footnote)' }}>
-        <span style={{ fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace', letterSpacing: '.06em' }}>{i.code}</span><span>→ {i.usedByName || 'used'}</span>
+        <span style={{ fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace', letterSpacing: '.06em' }}>{i.code}</span><span>→ {i.usedByName || 'used'}{i.email ? ' · ' + i.email : ''}</span>
       </div>)}
     </> : null}
-    {!open.length && !used.length && <div className="adm-empty">No codes yet. "New code" makes one and copies it to your clipboard.</div>}
+    {!open.length && !used.length && <div className="adm-empty">No codes yet. "New code" asks for a name, an email and how long they get, then shows the code.</div>}
   </div>
 }
 
@@ -395,8 +482,8 @@ export default function Admin() {
       <h2 style={{ margin: 0 }}>Users</h2>
       <div className="adm-lead">Everyone with a profile on this instance. Tap one to see their activity, to disable the account (nothing is deleted) or to delete it with all their data for good.</div>
       <div className="list">
-        {(users || []).map(u => <div key={u.id} className="item" onClick={() => openUser(u.id)} style={u.disabled ? { opacity: .55 } : null}>
-          <div className="grow"><div className="tt">{u.live && <Icon name="dot" style={{ fontSize: 9, color: 'var(--green)', display: 'inline-block', marginInlineEnd: 5 }} />}{u.name} {u.admin && <span className="adm-pill acc" style={{ marginInlineStart: 4 }}>{u.owner ? 'owner' : 'admin'}</span>}{u.disabled && <span className="adm-pill bad" style={{ marginInlineStart: 4 }}>disabled</span>}</div>
+        {(users || []).map(u => <div key={u.id} className="item" onClick={() => openUser(u.id)} style={u.disabled || u.expired ? { opacity: .55 } : null}>
+          <div className="grow"><div className="tt">{u.live && <Icon name="dot" style={{ fontSize: 9, color: 'var(--green)', display: 'inline-block', marginInlineEnd: 5 }} />}{u.name} {u.admin && <span className="adm-pill acc" style={{ marginInlineStart: 4 }}>{u.owner ? 'owner' : 'admin'}</span>}{u.disabled && <span className="adm-pill bad" style={{ marginInlineStart: 4 }}>disabled</span>}{u.expired && <span className="adm-pill bad" style={{ marginInlineStart: 4 }}>access ended</span>}</div>
             <div className="ss">{u.live ? 'training now · ' + u.live.name : u.workouts + ' workouts' + (u.lastWorkout ? ' · last ' + fmtDate(u.lastWorkout) : '') + ' · last sync ' + rel(u.lastSync)}</div>
             {u.email && <div className="ss" title="sign-in e-mail">{u.email}</div>}</div>
           {u.hasPush && <Icon name="bell" title="push notifications on" style={{ fontSize: 'var(--fs-subhead)', color: 'var(--label-3)' }} />}<Icon name="chevronRight" className="chev" />

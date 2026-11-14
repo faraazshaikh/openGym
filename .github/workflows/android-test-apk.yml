@@ -60,6 +60,12 @@ jobs:
           echo "VER=$VER" >> "$GITHUB_ENV"
           cp out/Fitrix-test.apk "out/openGym-$VER.apk"
           (cd out && sha256sum "openGym-$VER.apk" > "openGym-$VER.apk.sha256")
+          # The same file under a name that never changes, so one link always gives the newest app:
+          # https://github.com/<repo>/releases/latest/download/Fitrix.apk (the sign-up page uses it).
+          cp out/Fitrix-test.apk out/Fitrix.apk
+          # The release notes are this version's CHANGELOG.md section, word for word.
+          awk -v v="## v$VER " 'index($0, v) == 1 { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md > out/notes.md
+          [ -s out/notes.md ] || echo "Fitrix $VER, build ${GITHUB_SHA::7}." > out/notes.md
           ls -lh out
       - uses: actions/upload-artifact@v4
         with:
@@ -77,6 +83,5 @@ jobs:
             --notes "Debug build of ${GITHUB_SHA::7} for personal testing. Installs next to the real app as ch.duartesantos.opengym.test."
           # The release the in-app updater reads (a normal, latest release, not a prerelease).
           gh release delete "v$VER" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
-          gh release create "v$VER" "out/openGym-$VER.apk" "out/openGym-$VER.apk.sha256" --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" --latest --title "Fitrix $VER" \
-            --notes "Fitrix $VER, build ${GITHUB_SHA::7}. A phone that already has the test app is offered this inside the app (Settings, About)."
+          gh release create "v$VER" "out/openGym-$VER.apk" "out/openGym-$VER.apk.sha256" out/Fitrix.apk --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --latest --title "Fitrix $VER" --notes-file out/notes.md

@@ -387,8 +387,10 @@ export function passkeyError(e, fallback) {
   }
   return e?.message || fallback
 }
-export async function passkeyRegister(name, code) {
-  const { cid, options } = await api('/api/register/options', { method: 'POST', body: JSON.stringify({ name, code: code || '' }) })
+export async function passkeyRegister(name, code, email) {
+  // The address rides along only where an invite is tied to one: the server compares it with the
+  // address the invite was made for and refuses a sign-up that brings another.
+  const { cid, options } = await api('/api/register/options', { method: 'POST', body: JSON.stringify({ name, code: code || '', ...(email ? { email } : {}) }) })
   const cred = await navigator.credentials.create({ publicKey: toCreationOptions(options) })
   const res = await api('/api/register/verify', { method: 'POST', body: JSON.stringify({ cid, credential: credToJSON(cred) }) })
   return res.user

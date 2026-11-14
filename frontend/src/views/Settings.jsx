@@ -1829,6 +1829,7 @@ function AccountIdRow({ id }) {
 function RegisterInline({ close, setUser, pushState, pullState, toast }) {
   const nameRef = useRef(null)
   const [code, setCode] = useState('')
+  const [email, setEmail] = useState('')
   const [inviteOnly, setInviteOnly] = useState(false)
   useEffect(() => { api('/api/config').then(c => setInviteOnly(!!c.invite_only)).catch(() => {}) }, [])
   const go = async () => {
@@ -1836,7 +1837,7 @@ function RegisterInline({ close, setUser, pushState, pullState, toast }) {
     if (!n) { toast(t('Enter a name')); return }
     if (inviteOnly && !code.trim()) { toast(t('An invite code is required')); return }
     try {
-      const u = await passkeyRegister(n, code.trim()); setUser(u); close()
+      const u = await passkeyRegister(n, code.trim(), inviteOnly ? email.trim() : ''); setUser(u); close()
       if (hasData(useStore.getState().S)) { await pushState(); toast(t('Profile created, and your data moved into it')) }
       else { await pullState(); toast(t('Welcome, {0}', u.name)) }
     } catch (e) { if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') toast(passkeyError(e, t('Registration failed'))) }
@@ -1846,6 +1847,9 @@ function RegisterInline({ close, setUser, pushState, pullState, toast }) {
     <div className="muted small" style={{ marginBottom: 14 }}>{t('Pick a name, then confirm with your device.')}</div>
     <TextField ref={nameRef} placeholder={t('Your name')} maxLength={40} />
     {inviteOnly && <>
+      <div style={{ height: 10 }} />
+      <input className="input" type="email" name="email" autoComplete="email" inputMode="email" placeholder={t('E-mail address')} maxLength={254}
+        value={email} onChange={e => setEmail(e.target.value)} autoCapitalize="none" autoCorrect="off" />
       <div style={{ height: 10 }} />
       <input className="input" placeholder={t('Invite code')} maxLength={40} value={code}
         onChange={e => setCode(e.target.value.toUpperCase())} style={{ letterSpacing: '.14em', fontWeight: 600, textAlign: 'center' }} />

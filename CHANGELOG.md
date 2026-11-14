@@ -4,6 +4,29 @@ Newest first. Each release is a `## vX.Y.Z (YYYY-MM-DD)` section, and the releas
 GitHub and GitLab are that section, word for word. New work goes under `## Unreleased` until the
 tag. Write it for the people using the app: what changed for them, short, no em dashes.
 
+## v1.4.6 (2026-11-14)
+
+**Invite codes with a name, an email and a time limit.** In the Admin dashboard, New code now asks
+who it is for, their email, and how long they get: a number of months (it starts at 1) or
+indefinite. The months count from the day they sign up. When they run out they are locked out and
+their data is kept, and you can add months or make them indefinite from their page. A code only
+works with the email it was made for.
+
+**A proper front page.** Someone who opens the server without being signed in sees what Fitrix is
+about, a box for their invite code and, once they type a code, a link to the newest Android app. People
+who already have a profile sign in from the same page.
+
+**Release notes in every release.** Each release on GitHub now carries its section of this file, and
+the newest app is always at one link: releases/latest/download/Fitrix.apk.
+
+## v1.4.5 (2026-11-13)
+
+**Calories on Home.** A fourth ring shows active calories burned today, read from Health Connect on
+Android. Tap the dash on the calories line once to allow it.
+
+**Updates from the Fitrix releases.** The app now checks the Fitrix repository for new versions,
+so an update can be installed from inside the app.
+
 ## v1.4.4 (2026-11-03)
 
 **Modules: as much app as you want.** Settings → Modules switches whole parts of openGym on and

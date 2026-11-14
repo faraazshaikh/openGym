@@ -9,15 +9,17 @@ import { useState, useRef, useEffect } from 'react'
 import Icon from '../components/Icon.jsx'
 import { Button, Segmented } from '../components/ui.jsx'
 import { askAddDeviceData } from '../sheets.jsx'
-import { passwordOn, PasswordRegisterForm, openPasswordSignIn } from '../components/PasswordAuth.jsx'
+import { passwordOn, PasswordRegisterForm, openPasswordSignIn, looksLikeEmail } from '../components/PasswordAuth.jsx'
+import Landing from '../components/Landing.jsx'
 import { openDeviceLinkRedeem } from '../components/Passkeys.jsx'
 import { openLostAccess } from '../components/LostAccess.jsx'
 
-function RegisterSheet({ close }) {
+export function RegisterSheet({ close, initialCode = '' }) {
   const { setUser, pushState, pullState, loadConfig } = useStore()
   const config = useStore(s => s.config)
   const [name, setName] = useState('')
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState(initialCode)
+  const [email, setEmail] = useState('')
   const inviteOnly = !!config?.invite_only
   // A password is offered only where the instance allows it (#118), and is the only choice in a
   // browser that cannot make a passkey. Where both work, the passkey stays the first one.
@@ -32,8 +34,10 @@ function RegisterSheet({ close }) {
     const n = name.trim()
     if (!n) { useUI.getState().toast(t('Enter a name')); return }
     if (inviteOnly && !code.trim()) { useUI.getState().toast(t('An invite code is required')); return }
+    // An invite is made for one address, so the server wants that same address back.
+    if (inviteOnly && !looksLikeEmail(email)) { useUI.getState().toast(t('That is not an e-mail address.')); return }
     try {
-      const u = await passkeyRegister(n, code.trim())
+      const u = await passkeyRegister(n, code.trim(), inviteOnly ? email.trim() : '')
       setUser(u); close()
       if (hasData(useStore.getState().S)) { await pushState(); useUI.getState().toast(t('Profile created, and this device’s data moved into it')) }
       else { await pullState(); useUI.getState().toast(t('Welcome, {0}', u.name)) }
@@ -57,6 +61,9 @@ function RegisterSheet({ close }) {
     <input ref={ref} className="input" placeholder={t('Your name')} maxLength={40} value={name} onChange={e => setName(e.target.value)} />
     {inviteOnly && <>
       <div style={{ height: 10 }} />
+      <input className="input" type="email" name="email" autoComplete="email" inputMode="email" placeholder={t('E-mail address')} maxLength={254}
+        value={email} onChange={e => setEmail(e.target.value)} autoCapitalize="none" autoCorrect="off" />
+      <div style={{ height: 10 }} />
       <input className="input" placeholder={t('Invite code')} maxLength={40} value={code}
         onChange={e => setCode(e.target.value.toUpperCase())} style={{ letterSpacing: '.14em', fontWeight: 600, textAlign: 'center' }} />
       <div className="dim small" style={{ marginTop: 6 }}>{t('This app is invite-only. Enter the code you were given.')}</div>
@@ -71,7 +78,7 @@ export default function Login() {
   const config = useStore(s => s.config)
   const canGuest = guestAllowed(config)
   const pwOn = passwordOn(config)
-  const register = () => useUI.getState().openSheet(close => <RegisterSheet close={close} />)
+  const register = (initialCode = '') => useUI.getState().openSheet(close => <RegisterSheet close={close} initialCode={typeof initialCode === 'string' ? initialCode : ''} />)
   const signIn = async () => {
     try { const u = await passkeyLogin(); setUser(u, { adopt: true }); await adoptProfile(askAddDeviceData); useUI.getState().toast(t('Welcome back, {0}', u.name)) }
     catch (e) { if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') useUI.getState().toast(passkeyError(e, t('Sign-in failed'))) }
@@ -95,6 +102,19 @@ export default function Login() {
         <a href={REPO} target="_blank" rel="noopener">{t('Self-host it in a minute →')}</a>
       </div>
     </div>
+  )
+
+  // An invite-only server greets a stranger with a landing page: the invite box first, what the
+  // app is about under it, and a small way back in for people who already have a profile.
+  if (config?.invite_only) return (
+    <Landing head={head} tagline={t('Your workouts. Your weights. Your profile.')} onContinue={register}
+      signin={<>
+        {webauthnOK() && <Button variant="ghost" icon="fingerprint" onClick={signIn}>{t('Sign in with passkey')}</Button>}
+        {pwOn && <Button variant="ghost" icon="key" onClick={() => openPasswordSignIn()}>{t('Sign in with password')}</Button>}
+        {webauthnOK() && <Button variant="ghost" className="dim" icon="qr" onClick={openDeviceLinkRedeem}>{t('Use a code from your other device')}</Button>}
+        <Button variant="ghost" className="dim" onClick={openLostAccess}>{t('Lost access?')}</Button>
+        {canGuest && <Button variant="ghost" className="dim" onClick={() => setGuest(true)}>{t('Continue without account')}</Button>}
+      </>} />
   )
 
   return (

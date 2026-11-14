@@ -2901,6 +2901,51 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               example: { error: "no such user" }
 
+  /api/admin/user/validity:
+    post:
+      tags: [admin]
+      operationId: adminUserValidity
+      summary: 'Admin: extend or end the access window of a user'
+      description: |
+        `months` adds that many months to what the user has left (or to now, once it has
+        passed), so an expired account comes back at once. `null` (or `"indefinite"`) removes
+        the limit. The owner never expires. Audited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, months]
+              properties:
+                id: { type: string, description: The user id. }
+                months:
+                  oneOf: [{ type: integer, minimum: 1, maximum: 120 }, { type: 'null' }]
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+                  id: { type: string }
+                  expiresAt: { oneOf: [{ type: string }, { type: 'null' }] }
+                  expired: { type: boolean }
+        '400':
+          description: Invalid months, or the target is the owner.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: No user with that id.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /api/admin/user/delete:
     post:
       tags: [admin]
@@ -3069,10 +3114,24 @@ paths:
             schema:
               type: object
               properties:
+                name:
+                  type: string
+                  maxLength: 60
+                  description: Who the invite is for ("Alex"). `note` is accepted as the same field.
                 note:
                   type: string
                   maxLength: 60
-                  description: Free-form label ("for Alex").
+                  description: Older name for `name`.
+                email:
+                  type: string
+                  description: >-
+                    The address the invite is for. When set, the code only works if the
+                    person signs up with this same address (compared after normalising).
+                months:
+                  oneOf: [{ type: integer, minimum: 1, maximum: 120 }, { type: 'null' }]
+                  description: >-
+                    How many months of access they get, counted from sign-up. Left out or
+                    null means indefinite (until an admin removes or disables the account).
       responses:
         '200':
           description: The new invite.
@@ -3082,6 +3141,11 @@ paths:
                 type: object
                 properties:
                   invite: { $ref: '#/components/schemas/Invite' }
+        '400':
+          description: The email or the months value is not valid.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
@@ -4505,6 +4569,8 @@ components:
         name: { type: string }
         created: { oneOf: [{ type: string }, { type: 'null' }], description: ISO timestamp. }
         disabled: { type: boolean }
+        expiresAt: { oneOf: [{ type: string }, { type: 'null' }], description: When the invite's months run out; null means indefinite. }
+        expired: { type: boolean, description: expiresAt has passed. The account is locked out like a disabled one, its data kept. }
         owner: { type: boolean, description: The one admin who manages the others. }
         admin: { type: boolean }
         invitedBy:
@@ -4587,6 +4653,11 @@ components:
       properties:
         code: { type: string, description: 16 hex chars. }
         note: { type: string }
+        name: { type: string, description: Who the invite is for (same text as `note`). }
+        email: { type: string, description: Normalised address the invite is tied to (absent when open to any address). }
+        months:
+          oneOf: [{ type: integer }, { type: 'null' }]
+          description: Months of access from sign-up; null means indefinite.
         createdBy: { type: string, description: Admin user id. }
         created: { type: string, description: ISO timestamp. }
         usedBy:

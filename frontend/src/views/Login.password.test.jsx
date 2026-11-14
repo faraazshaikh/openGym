@@ -2,7 +2,7 @@
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import Login from './Login.jsx'
+import Login, { RegisterSheet } from './Login.jsx'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -89,10 +89,10 @@ describe('Login with password sign-in', () => {
   })
 
   it('where both work, creating a profile starts on the passkey and switches to a password', () => {
+    // On an invite-only server the sign-in screen is the landing page (Login.landing.test.jsx),
+    // whose Continue button opens this same sheet, so the sheet is mounted straight away here.
     mocks.config = { password_login: true, invite_only: true }
-    const page = mount(<Login />)
-    act(() => button(page, 'Create new profile').click())
-    const sheet = mount(mocks.sheets[0](() => {}))
+    const sheet = mount(<RegisterSheet close={() => {}} />)
     expect(buttons(sheet)).toContain('Create passkey')
     act(() => button(sheet, 'Password').click())
     expect(buttons(sheet)).toContain('Create profile')

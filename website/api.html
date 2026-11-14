@@ -247,7 +247,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <p class="api-facts">
     <span>OpenAPI 3.1.0</span>
     <span>openGym v1.4.3</span>
-    <span>92 endpoints</span>
+    <span>93 endpoints</span>
     <span>AGPL-3.0-or-later</span>
   </p>
 
@@ -3529,6 +3529,55 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   </div>
 </details>
 
+<details class="ep" id="op-adminUserValidity">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/admin/user/validity</code><span class="ep-chip admin">admin</span></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Extend or end the access window of a user</span>
+  </summary>
+  <div class="ep-body">
+<p><code>months</code> adds that many months to what the user has left (or to now, once it has passed), so an expired account comes back at once. <code>null</code> (or <code>&quot;indefinite&quot;</code>) removes the limit. The owner never expires. Audited.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Admin only: a signed-in session whose user is an admin (<code>ADMIN_UIDS</code> or <code>admin:true</code>), as the session cookie or a Bearer token.</span></p>
+
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span></p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">id<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc">The user id.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">months<em class="p-req" title="required">required</em></span>
+    <span class="p-type">integer <span class="p-hint">(1&ndash;120)</span> | null</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Updated.<span class="r-sig">{ ok: always true, id: string, expiresAt: string | null, expired: boolean }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">Invalid months, or the target is the owner.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">403</span>
+    <span class="p-desc">Signed in, but not an admin. The attempt is recorded in the audit log.<span class="r-sig"><code>{&quot;error&quot;:&quot;forbidden&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">No user with that id.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
 <details class="ep" id="op-adminUserDelete">
   <summary>
     <span class="m post">POST</span>
@@ -3709,9 +3758,24 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
 
 <p class="ep-h">Request body <span class="p-hint">(JSON)</span> <span class="p-hint">(optional)</span></p><div class="ptab">
   <div class="prow">
+    <span class="p-name">name</span>
+    <span class="p-type">string <span class="p-hint">(&le; 60 chars)</span></span>
+    <span class="p-desc">Who the invite is for (&quot;Alex&quot;). <code>note</code> is accepted as the same field.</span>
+  </div>
+  <div class="prow">
     <span class="p-name">note</span>
     <span class="p-type">string <span class="p-hint">(&le; 60 chars)</span></span>
-    <span class="p-desc">Free-form label (&quot;for Alex&quot;).</span>
+    <span class="p-desc">Older name for <code>name</code>.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">email</span>
+    <span class="p-type">string</span>
+    <span class="p-desc">The address the invite is for. When set, the code only works if the person signs up with this same address (compared after normalising).</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">months</span>
+    <span class="p-type">integer <span class="p-hint">(1&ndash;120)</span> | null</span>
+    <span class="p-desc">How many months of access they get, counted from sign-up. Left out or null means indefinite (until an admin removes or disables the account).</span>
   </div>
 </div>
     <p class="ep-h">Responses</p>
@@ -3719,6 +3783,10 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow rrow">
     <span class="r-code s2">200</span>
     <span class="p-desc">The new invite.<span class="r-sig">{ invite: <a href="#schema-Invite">Invite</a> }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">The email or the months value is not valid.</span>
   </div>
   <div class="prow rrow">
     <span class="r-code s4">401</span>
@@ -5295,6 +5363,16 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="p-desc"></span>
   </div>
   <div class="prow">
+    <span class="p-name">expiresAt</span>
+    <span class="p-type">string | null</span>
+    <span class="p-desc">When the invite's months run out; null means indefinite.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">expired</span>
+    <span class="p-type">boolean</span>
+    <span class="p-desc">expiresAt has passed. The account is locked out like a disabled one</span>
+  </div>
+  <div class="prow">
     <span class="p-name">owner</span>
     <span class="p-type">boolean</span>
     <span class="p-desc">The one admin who manages the others.</span>
@@ -5532,6 +5610,21 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="p-name">note</span>
     <span class="p-type">string</span>
     <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">name</span>
+    <span class="p-type">string</span>
+    <span class="p-desc">Who the invite is for (same text as <code>note</code>).</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">email</span>
+    <span class="p-type">string</span>
+    <span class="p-desc">Normalised address the invite is tied to (absent when open to any address).</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">months</span>
+    <span class="p-type">integer | null</span>
+    <span class="p-desc">Months of access from sign-up; null means indefinite.</span>
   </div>
   <div class="prow">
     <span class="p-name">createdBy</span>
