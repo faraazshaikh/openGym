@@ -10,9 +10,9 @@ import { useDailyHealth } from './DailyHealth.jsx'
 import Icon from './Icon.jsx'
 import { Button } from './ui.jsx'
 
-// Three rings, one inside the other: the outer is steps, then sleep, then workout minutes.
-const R = [84, 62, 40]
-const W = 16
+// Four rings, one inside the other: the outer is steps, then sleep, workout minutes and active calories.
+const R = [86, 67, 48, 29]
+const W = 13
 const circ = r => 2 * Math.PI * r
 
 function Rings({ rings, label }) {
@@ -30,7 +30,7 @@ function Rings({ rings, label }) {
 }
 
 /**
- * The top of the home screen: today's rings (steps, sleep, workout minutes) with the resting heart
+ * The top of the home screen: today's rings (steps, sleep, workout minutes, calories) with the resting heart
  * rate beside them, or, on a phone that has not been connected yet, one card to connect the health
  * data. Nothing on the web, where there is no health hub to read.
  */
@@ -61,15 +61,25 @@ export default function HomeToday() {
     )
   }
 
-  const [steps, sleep, workout] = h.rings
-  const val = (g, text, unit) => (
-    <div className="ht-stat">
-      <div className="ht-lbl"><span className={'ht-dot ht-d' + (g.key === 'steps' ? 1 : g.key === 'sleep' ? 2 : 3)} aria-hidden="true" />{g.name}</div>
+  const [steps, sleep, workout, calories] = h.rings
+  // The calories need their own permission, which a phone connected before has not given: with
+  // nothing to show, tapping that line asks for it (the same Connect step, all the daily numbers).
+  const allow = async () => {
+    setBusy(true)
+    try {
+      const r = await enableRead('daily', () => useStore.getState().S)
+      if (!r.ok) toast(r.reason === 'denied' ? t('Health Connect permission not granted') : t('Health Connect is not available on this phone'))
+    } catch { toast(t('Health Connect is not available on this phone')) }
+    setBusy(false)
+  }
+  const val = (g, text, unit, onTap) => (
+    <div className={'ht-stat' + (onTap ? ' ht-tap' : '')} {...(onTap ? { role: 'button', tabIndex: 0, onClick: onTap, onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap() } } } : {})}>
+      <div className="ht-lbl"><span className={'ht-dot ht-d' + (g.key === 'steps' ? 1 : g.key === 'sleep' ? 2 : g.key === 'workout' ? 3 : 4)} aria-hidden="true" />{g.name}</div>
       <div className="ht-val">{g.value ? text : '–'}{g.value ? <span>{unit}</span> : null}</div>
     </div>
   )
-  steps.name = t('Steps'); sleep.name = t('Sleep'); workout.name = t('Workout')
-  const aria = [steps, sleep, workout].map(g => g.name + ' ' + Math.round(g.fill * 100) + '%').join(', ')
+  steps.name = t('Steps'); sleep.name = t('Sleep'); workout.name = t('Workout'); calories.name = t('Calories')
+  const aria = [steps, sleep, workout, calories].map(g => g.name + ' ' + Math.round(g.fill * 100) + '%').join(', ')
   return (
     <div className="card ht-card">
       <div className="ht-top">
@@ -78,6 +88,7 @@ export default function HomeToday() {
           {val(steps, fmtNum(steps.value), ' / ' + fmtNum(steps.goal))}
           {val(sleep, fmtDur(sleep.value * 60000), '')}
           {val(workout, String(workout.value), ' ' + t('min'))}
+          {val(calories, fmtNum(calories.value), ' kcal', !calories.value && !busy ? allow : null)}
         </div>
       </div>
       {h.rhr && (

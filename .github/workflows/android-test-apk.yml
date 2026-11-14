@@ -1,8 +1,11 @@
 # A debug APK you can install on your own Android phone, built from this fork.
 #
 # Run it by hand: Actions tab -> "Android test APK" -> Run workflow. The finished APK is published
-# as the "Test APK" prerelease on the Releases page (tap Fitrix-test.apk to download it). The same
-# file is also kept for 14 days as the `opengym-test-apk` artifact (a zip, needs a GitHub sign-in).
+# two ways on the Releases page: as the "Test APK" prerelease (tap Fitrix-test.apk to download it),
+# and as a normal release v<version> (the version in frontend/package.json) with openGym-<version>.apk
+# and its .sha256, which is what the app's own updater looks for (lib/update.js): a phone running an
+# older build then offers the update itself. Raise the version before a build you want phones to
+# pick up. The same file is also kept for 14 days as the `opengym-test-apk` artifact.
 #
 # This is a debug build for personal testing, not a release. It installs next to the real app
 # (its own app id, ch.duartesantos.opengym.test) and is signed with a throwaway debug key, so it
@@ -51,6 +54,13 @@ jobs:
           mkdir -p out
           cp frontend/android/app/build/outputs/apk/sideload/debug/*.apk out/Fitrix-test.apk
           ls -lh out
+      - name: Name the files for the in-app updater
+        run: |
+          VER=$(node -p "require('./frontend/package.json').version")
+          echo "VER=$VER" >> "$GITHUB_ENV"
+          cp out/Fitrix-test.apk "out/openGym-$VER.apk"
+          (cd out && sha256sum "openGym-$VER.apk" > "openGym-$VER.apk.sha256")
+          ls -lh out
       - uses: actions/upload-artifact@v4
         with:
           name: opengym-test-apk
@@ -65,3 +75,8 @@ jobs:
           gh release create test-latest out/Fitrix-test.apk --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" --prerelease --title "Test APK" \
             --notes "Debug build of ${GITHUB_SHA::7} for personal testing. Installs next to the real app as ch.duartesantos.opengym.test."
+          # The release the in-app updater reads (a normal, latest release, not a prerelease).
+          gh release delete "v$VER" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create "v$VER" "out/openGym-$VER.apk" "out/openGym-$VER.apk.sha256" --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --latest --title "Fitrix $VER" \
+            --notes "Fitrix $VER, build ${GITHUB_SHA::7}. A phone that already has the test app is offered this inside the app (Settings, About)."

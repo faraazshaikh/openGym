@@ -247,7 +247,7 @@ const SEEN_KEEP_MS = 60 * 24 * 3600e3
 // permission), later ones from the day before the newest kept, so the days still filling in are recounted.
 export const DAILY_FIRST_DAYS = 30
 // Heart rate too: where no app saves a resting value, it is estimated from the day's readings.
-const DAILY_PERMS = ['steps', 'sleep', 'restingHeartRate', 'heartRate']
+const DAILY_PERMS = ['steps', 'sleep', 'restingHeartRate', 'heartRate', 'calories']
 const READ_FLAG = { hr: 'readHr', weight: 'readWeight', daily: 'readDaily' }
 
 const srcOf = platform => (platform === 'ios' ? 'ah' : 'hc')
@@ -277,7 +277,7 @@ export async function enableRead(kind, getState, { apply = null } = {}) {
   const res = await p.HC.requestPermissions({ read: history ? [perm, 'history'] : perms, write: [] }).catch(() => null)
   // Apple Health never says whether reading was allowed (that it was refused is itself private):
   // `read` is then missing, and a refusal just reads nothing.
-  // The daily numbers are three permissions: one of them is enough, the others just read nothing.
+  // The daily numbers are several permissions: one of them is enough, the others just read nothing.
   const ok = res && (res.read ? perms.some(k => res.read[k] !== false) : true)
   if (!ok) return { ok: false, reason: 'denied' }
   const h = await loadHealth()

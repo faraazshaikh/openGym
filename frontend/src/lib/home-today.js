@@ -4,6 +4,7 @@
 export const STEPS_GOAL = 10000
 export const SLEEP_GOAL_MIN = 480      // 8 h
 export const WORKOUT_GOAL_MIN = 45
+export const CALORIES_GOAL = 500      // active kcal
 
 // A single session longer than this is a forgotten timer, not training.
 const SESSION_MAX_MIN = 6 * 60
@@ -39,12 +40,13 @@ function latest(daily, key, day, limit = 14) {
 /**
  * The home screen's numbers for `day`. `daily` is null while the health read is off (or on the
  * web): `connected` is then false and the screen offers to connect. Rings: steps, sleep and
- * workout minutes, each with its value, goal and fill.
+ * workout minutes and active calories, each with its value, goal and fill.
  */
 export function homeToday(S, daily, day) {
   const connected = daily != null
   const steps = connected ? daily[day]?.steps ?? null : null
   const sleep = connected ? daily[day]?.sleep ?? null : null
+  const calories = connected ? daily[day]?.cal ?? null : null
   const workout = workoutMinutesOn(S, day)
   const rhr = connected ? latest(daily, 'rhr', day) : null
   const ring = (key, value, goal) => ({ key, value, goal, fill: ringFill(value, goal) })
@@ -54,6 +56,7 @@ export function homeToday(S, daily, day) {
       ring('steps', steps, STEPS_GOAL),
       ring('sleep', sleep, SLEEP_GOAL_MIN),
       ring('workout', workout, WORKOUT_GOAL_MIN),
+      ring('calories', calories, CALORIES_GOAL),
     ],
     rhr: rhr ? { value: rhr.value, est: rhr.est, today: rhr.day === day } : null,
   }

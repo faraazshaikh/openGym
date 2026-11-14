@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ringFill, workoutMinutesOn, homeToday, STEPS_GOAL } from './home-today.js'
+import { ringFill, workoutMinutesOn, homeToday, STEPS_GOAL, CALORIES_GOAL } from './home-today.js'
 
 const MIN = 60000
 
@@ -45,7 +45,7 @@ describe('homeToday', () => {
     const h = homeToday({ workouts: [] }, null, day)
     expect(h.connected).toBe(false)
     expect(h.rhr).toBe(null)
-    expect(h.rings.map(r => r.key)).toEqual(['steps', 'sleep', 'workout'])
+    expect(h.rings.map(r => r.key)).toEqual(['steps', 'sleep', 'workout', 'calories'])
     expect(h.rings[0].fill).toBe(0)
   })
   it('fills the rings from today and picks the latest resting heart rate', () => {
@@ -59,6 +59,13 @@ describe('homeToday', () => {
     expect(h.rings[0]).toMatchObject({ value: 4000, goal: STEPS_GOAL, fill: 0.4 })
     expect(h.rings[1].fill).toBeCloseTo(0.875)
     expect(h.rhr).toEqual({ value: 59, est: true, today: false })
+  })
+
+  it('fills the calories ring from the active calories of the day, and leaves it empty without them', () => {
+    const withCal = homeToday({ workouts: [] }, { [day]: { cal: 250 } }, day)
+    expect(withCal.rings[3]).toMatchObject({ key: 'calories', value: 250, goal: CALORIES_GOAL, fill: 0.5 })
+    const without = homeToday({ workouts: [] }, { [day]: { steps: 4000 } }, day)
+    expect(without.rings[3]).toMatchObject({ key: 'calories', value: null, fill: 0 })
   })
   it('connected with an empty day is connected, with empty rings', () => {
     const h = homeToday({ workouts: [] }, {}, day)

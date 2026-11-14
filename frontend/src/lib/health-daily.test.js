@@ -26,6 +26,28 @@ describe('dailyFromHub steps', () => {
   })
 })
 
+describe('dailyFromHub calories', () => {
+  it('takes one app per day, the one with the most, and never adds two apps together', () => {
+    const raw = { cal: [
+      [at('2026-11-10', 8), at('2026-11-10', 9), 120.4, 0],
+      [at('2026-11-10', 10), at('2026-11-10', 11), 200, 0],
+      [at('2026-11-10', 9), at('2026-11-10', 12), 280, 1],
+    ] }
+    expect(dailyFromHub(raw)['2026-11-10'].cal).toBe(320)
+  })
+
+  it('counts a record on the day it starts and drops absurd ones', () => {
+    const raw = { cal: [
+      [at('2026-11-10', 23, 50), at('2026-11-11', 0, 10), 40, 0],
+      [at('2026-11-11', 9), at('2026-11-11', 10), 9_999_999, 0],
+      [at('2026-11-11', 9), at('2026-11-11', 10), -5, 0],
+    ] }
+    const out = dailyFromHub(raw)
+    expect(out['2026-11-10'].cal).toBe(40)
+    expect(out['2026-11-11']).toBeUndefined()
+  })
+})
+
 describe('dailyFromHub sleep', () => {
   it('belongs to the wake-up day and counts only the time asleep', () => {
     const s = at('2026-11-09', 23), e = at('2026-11-10', 7)

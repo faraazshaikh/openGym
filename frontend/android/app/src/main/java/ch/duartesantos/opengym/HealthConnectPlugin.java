@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContract;
 import androidx.health.connect.client.HealthConnectClient;
 import androidx.health.connect.client.HealthConnectFeatures;
 import androidx.health.connect.client.PermissionController;
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord;
 import androidx.health.connect.client.records.ExerciseSessionRecord;
 import androidx.health.connect.client.records.HeartRateRecord;
 import androidx.health.connect.client.records.Record;
@@ -72,7 +73,7 @@ import org.json.JSONObject;
  *   await HC.requestPermissions({ read: ['heartRate'], write: [] });  // { granted, read: { heartRate, weight } }
  *   await HC.readHeartRate({ from, to });   // { samples: [[ms, bpm]], origins: [package] }
  *   await HC.readWeights({ since });        // { records: [{ t, kg, id, origin, clientId }] }
- *   await HC.readDaily({ since });          // { origins, steps, sleep, rhr, hr } (steps, sleep, resting heart rate, heart rate)
+ *   await HC.readDaily({ since });          // { origins, steps, sleep, rhr, hr, cal } (steps, sleep, resting heart rate, heart rate, active calories)
  * Foreground only: no READ_HEALTH_DATA_IN_BACKGROUND. Without READ_HEALTH_DATA_HISTORY Health
  * Connect gives 30 days back from the first grant, plenty for the workout just done; weigh-ins
  * ask for it too (read: ['weight', 'history']) where Health Connect has the feature, which
@@ -90,6 +91,7 @@ public class HealthConnectPlugin extends Plugin {
     private static final String READ_STEPS = "android.permission.health.READ_STEPS";
     private static final String READ_SLEEP = "android.permission.health.READ_SLEEP";
     private static final String READ_RESTING_HR = "android.permission.health.READ_RESTING_HEART_RATE";
+    private static final String READ_ACTIVE_CAL = "android.permission.health.READ_ACTIVE_CALORIES_BURNED";
     private static final String READ_HISTORY = "android.permission.health.READ_HEALTH_DATA_HISTORY";
     // Records per page when reading, and pages at most: a few hours of heart rate fit easily.
     private static final int PAGE = 1000;
@@ -344,11 +346,18 @@ public class HealthConnectPlugin extends Plugin {
                 Set<String> got = granted();
                 TimeRangeFilter range = TimeRangeFilter.after(Instant.ofEpochMilli(since));
                 List<String> origins = new ArrayList<>();
-                JSArray steps = new JSArray(), sleep = new JSArray(), rhr = new JSArray(), hr = new JSArray();
+                JSArray steps = new JSArray(), sleep = new JSArray(), rhr = new JSArray(), hr = new JSArray(), cal = new JSArray();
                 if (got.contains(READ_STEPS)) {
                     for (StepsRecord r : read(StepsRecord.class, range)) {
                         steps.put(new JSArray().put(r.getStartTime().toEpochMilli()).put(r.getEndTime().toEpochMilli())
                                 .put(r.getCount()).put(HealthRead.originIndex(origins, r.getMetadata().getDataOrigin().getPackageName())));
+                    }
+                }
+                // Active calories burned, as [start, end, kcal, origin] (lib/health-daily.js sums a day).
+                if (got.contains(READ_ACTIVE_CAL)) {
+                    for (ActiveCaloriesBurnedRecord r : read(ActiveCaloriesBurnedRecord.class, range)) {
+                        cal.put(new JSArray().put(r.getStartTime().toEpochMilli()).put(r.getEndTime().toEpochMilli())
+                                .put(r.getEnergy().getKilocalories()).put(HealthRead.originIndex(origins, r.getMetadata().getDataOrigin().getPackageName())));
                     }
                 }
                 if (got.contains(READ_SLEEP)) {
@@ -392,6 +401,7 @@ public class HealthConnectPlugin extends Plugin {
                 out.put("steps", steps);
                 out.put("sleep", sleep);
                 out.put("rhr", rhr);
+                out.put("cal", cal);
                 call.resolve(out);
             } catch (SecurityException e) {
                 call.reject(e.getMessage(), "permission");
@@ -448,6 +458,7 @@ public class HealthConnectPlugin extends Plugin {
         r.put("steps", granted.contains(READ_STEPS));
         r.put("sleep", granted.contains(READ_SLEEP));
         r.put("restingHeartRate", granted.contains(READ_RESTING_HR));
+        r.put("calories", granted.contains(READ_ACTIVE_CAL));
         r.put("history", granted.contains(READ_HISTORY));
         return r;
     }

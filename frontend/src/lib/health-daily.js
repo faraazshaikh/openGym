@@ -21,6 +21,7 @@ import { isoOf } from './format.js'
 const ASLEEP = new Set([2, 4, 5, 6])
 const STEPS_MAX = 200000          // a day beyond this is a faulty record, not a walk
 const SLEEP_MAX_MIN = 20 * 60     // a session longer than this is a faulty record
+const CAL_MAX = 20000             // active kcal a day beyond this is a faulty record
 const BPM_MIN = 25, BPM_MAX = 250
 export const KEEP_DAYS = 90
 export const HR_EST_MIN = 20       // readings a day needs before its resting heart rate is estimated
@@ -33,9 +34,9 @@ const num = v => { const n = Number(v); return Number.isFinite(n) ? n : NaN }
 const best = totals => Object.values(totals).reduce((m, v) => Math.max(m, v), 0)
 
 /**
- * One number per day from a raw read: `raw` is { steps, sleep, rhr } as the native plugin
+ * One number per day from a raw read: `raw` is { steps, sleep, rhr, cal } as the native plugin
  * answers (lib: health-sync.js readDaily). Days before `fromDay` ('YYYY-MM-DD') are left out, as
- * a read that starts mid-day would hold only part of them. Returns { [day]: { steps?, sleep?, rhr? } },
+ * a read that starts mid-day would hold only part of them. Returns { [day]: { steps?, sleep?, rhr?, cal? } },
  * sleep in minutes. A metric with no valid record that day is missing, not zero.
  */
 export function dailyFromHub(raw, { fromDay = '' } = {}) {
@@ -50,6 +51,17 @@ export function dailyFromHub(raw, { fromDay = '' } = {}) {
     by[o] = (by[o] || 0) + n
   }
   for (const [d, by] of Object.entries(steps)) { const v = best(by); if (v > 0 && v <= STEPS_MAX) put(d, 'steps', Math.round(v)) }
+
+  // Active calories burned, counted on the day a record starts, one app's total per day (the
+  // biggest), like the steps: two apps writing the same movement must not add up.
+  const cal = {}         // day -> origin -> kcal
+  for (const r of Array.isArray(raw?.cal) ? raw.cal : []) {
+    const [s, e, k, o] = Array.isArray(r) ? r.map(num) : []
+    if (!(s > 0) || !(e >= s) || !(k > 0) || k > CAL_MAX) continue
+    const d = dayOf(s), by = cal[d] = cal[d] || {}
+    by[o] = (by[o] || 0) + k
+  }
+  for (const [d, by] of Object.entries(cal)) { const v = best(by); if (v > 0 && v <= CAL_MAX) put(d, 'cal', Math.round(v)) }
 
   const sleep = {}       // wake-up day -> origin -> minutes
   for (const r of Array.isArray(raw?.sleep) ? raw.sleep : []) {
