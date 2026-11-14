@@ -11,7 +11,10 @@
 //   - Sleep belongs to the day you wake up, and counts time asleep only: with stages, light, deep,
 //     REM and plain "sleeping"; awake time in bed is left out. Without stages, the whole session.
 //     As with steps, one app's sleep per day: the longest.
-//   - Resting heart rate is the day's last reading, from the app with the most readings.
+//   - Resting heart rate is the day's last reading, from the app with the most readings. Where no
+//     app saves one (Mi Fitness saves the heart rate but no resting value), it is estimated from the
+//     day's heart rate readings: the lowest 5 percent, with at least HR_EST_MIN readings behind it,
+//     and the day is marked `rhrEst` so the screen can say it is an estimate.
 import { isoOf } from './format.js'
 
 // Health Connect's SleepSessionRecord stage types that are sleep: sleeping, light, deep, REM.
@@ -20,6 +23,8 @@ const STEPS_MAX = 200000          // a day beyond this is a faulty record, not a
 const SLEEP_MAX_MIN = 20 * 60     // a session longer than this is a faulty record
 const BPM_MIN = 25, BPM_MAX = 250
 export const KEEP_DAYS = 90
+export const HR_EST_MIN = 20       // readings a day needs before its resting heart rate is estimated
+const HR_EST_PERCENTILE = 0.05
 
 const dayOf = ms => isoOf(new Date(ms))
 const num = v => { const n = Number(v); return Number.isFinite(n) ? n : NaN }
@@ -78,6 +83,23 @@ export function dailyFromHub(raw, { fromDay = '' } = {}) {
     const last = list.reduce((m, x) => (!m || x.t > m.t ? x : m), null)
     if (last) put(d, 'rhr', Math.round(last.bpm))
   }
+
+  // No resting value that day: the lowest readings of the day, from the app with the most.
+  const hr = {}          // day -> origin -> [bpm]
+  for (const r of Array.isArray(raw?.hr) ? raw.hr : []) {
+    const [t, bpm, o] = Array.isArray(r) ? r.map(num) : []
+    if (!(t > 0) || !(bpm >= BPM_MIN && bpm <= BPM_MAX)) continue
+    const d = dayOf(t), by = hr[d] = hr[d] || {}
+    ;(by[o] = by[o] || []).push(bpm)
+  }
+  for (const [d, by] of Object.entries(hr)) {
+    if (d < fromDay || out[d]?.rhr) continue
+    const list = Object.values(by).sort((a, b) => b.length - a.length)[0] || []
+    if (list.length < HR_EST_MIN) continue
+    const sorted = [...list].sort((a, b) => a - b)
+    put(d, 'rhr', Math.round(sorted[Math.floor(HR_EST_PERCENTILE * (sorted.length - 1))]))
+    out[d].rhrEst = true
+  }
   return out
 }
 
@@ -115,5 +137,7 @@ export function monthSummary(daily, y, mo) {
     const xs = rows.map(r => r?.[key]).filter(v => Number.isFinite(v) && v > 0)
     return xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null
   }
-  return { steps: avg('steps'), sleep: avg('sleep'), rhr: avg('rhr'), days: rows.length }
+  // An estimate when any day's resting heart rate was worked out from the readings, not saved by an app.
+  const rhrEst = rows.some(r => r?.rhrEst && Number.isFinite(r.rhr))
+  return { steps: avg('steps'), sleep: avg('sleep'), rhr: avg('rhr'), rhrEst, days: rows.length }
 }

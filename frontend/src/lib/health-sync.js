@@ -246,7 +246,8 @@ const SEEN_KEEP_MS = 60 * 24 * 3600e3
 // The daily numbers: the first read goes 30 days back (what Health Connect gives without the history
 // permission), later ones from the day before the newest kept, so the days still filling in are recounted.
 export const DAILY_FIRST_DAYS = 30
-const DAILY_PERMS = ['steps', 'sleep', 'restingHeartRate']
+// Heart rate too: where no app saves a resting value, it is estimated from the day's readings.
+const DAILY_PERMS = ['steps', 'sleep', 'restingHeartRate', 'heartRate']
 const READ_FLAG = { hr: 'readHr', weight: 'readWeight', daily: 'readDaily' }
 
 const srcOf = platform => (platform === 'ios' ? 'ah' : 'hc')

@@ -54,6 +54,12 @@ describe('DailyHealthStrip', () => {
     expect(text).toContain('Daily average')
   })
 
+  it('marks the resting heart rate with a ~ when it was estimated', async () => {
+    h.file = { readDaily: true, daily: { '2026-11-01': { rhr: 54, rhrEst: true } } }
+    const host = await render(<Probe />)
+    expect(host.textContent).toContain('~54 bpm')
+  })
+
   it('leaves out a number no day has', async () => {
     h.file = { readDaily: true, daily: { '2026-11-01': { steps: 5000 } } }
     const host = await render(<Probe />)

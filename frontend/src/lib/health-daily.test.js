@@ -67,6 +67,48 @@ describe('dailyFromHub resting heart rate', () => {
   })
 })
 
+describe('dailyFromHub resting heart rate estimate', () => {
+  // 40 readings across the day: 30 awake at 80 to 100, 10 asleep at 52 to 56 (the lowest 5 percent are 52).
+  const day = '2026-11-10'
+  const readings = (origin = 0) => [
+    ...Array.from({ length: 30 }, (_, i) => [at(day, 8) + i * 10 * MIN, 80 + (i % 21), origin]),
+    ...Array.from({ length: 10 }, (_, i) => [at(day, 2) + i * 10 * MIN, 52 + (i % 5), origin]),
+  ]
+
+  it('takes the lowest 5 percent of the day when no app saves a resting value, and says it is an estimate', () => {
+    const out = dailyFromHub({ hr: readings() })
+    expect(out[day].rhr).toBe(52)
+    expect(out[day].rhrEst).toBe(true)
+  })
+
+  it('never replaces a resting value an app saved', () => {
+    const out = dailyFromHub({ hr: readings(), rhr: [[at(day, 7), 61, 1]] })
+    expect(out[day].rhr).toBe(61)
+    expect(out[day].rhrEst).toBeUndefined()
+  })
+
+  it('needs enough readings, and ignores implausible ones', () => {
+    expect(dailyFromHub({ hr: readings().slice(0, 10) })[day]).toBeUndefined()
+    const junk = Array.from({ length: 30 }, (_, i) => [at(day, 8) + i * MIN, i % 2 ? 3 : 400, 0])
+    expect(dailyFromHub({ hr: junk })).toEqual({})
+  })
+
+  it('uses one app, the one with the most readings', () => {
+    const other = Array.from({ length: 25 }, (_, i) => [at(day, 9) + i * MIN, 40, 1])
+    expect(dailyFromHub({ hr: [...readings(0), ...other] })[day].rhr).toBe(52)
+  })
+
+  it('leaves out days before fromDay', () => {
+    expect(dailyFromHub({ hr: readings() }, { fromDay: '2026-11-11' })).toEqual({})
+  })
+
+  it('marks the month an estimate when any day was', () => {
+    const daily = { '2026-11-01': { rhr: 60 }, '2026-11-02': { rhr: 54, rhrEst: true } }
+    expect(monthSummary(daily, 2026, 10)).toMatchObject({ rhr: 57, rhrEst: true })
+    expect(monthSummary({ '2026-11-01': { rhr: 60 } }, 2026, 10).rhrEst).toBe(false)
+  })
+})
+
 describe('dailyFromHub window and bad input', () => {
   it('leaves out days before fromDay', () => {
     const raw = { steps: [[at('2026-11-08'), at('2026-11-08', 13), 100, 0], [at('2026-11-09'), at('2026-11-09', 13), 200, 0]] }
@@ -100,7 +142,7 @@ describe('mergeDaily and monthSummary', () => {
       '2026-11-03': { rhr: 64 },
       '2026-10-31': { steps: 99999 },
     }
-    expect(monthSummary(daily, 2026, 10)).toEqual({ steps: 7000, sleep: 450, rhr: 62, days: 3 })
-    expect(monthSummary(daily, 2026, 8)).toEqual({ steps: null, sleep: null, rhr: null, days: 0 })
+    expect(monthSummary(daily, 2026, 10)).toEqual({ steps: 7000, sleep: 450, rhr: 62, rhrEst: false, days: 3 })
+    expect(monthSummary(daily, 2026, 8)).toEqual({ steps: null, sleep: null, rhr: null, rhrEst: false, days: 0 })
   })
 })

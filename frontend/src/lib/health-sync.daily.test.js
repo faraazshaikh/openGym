@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // health-sync.read.test.js.
 const h = vi.hoisted(() => {
   vi.stubEnv('VITE_MOBILE', '1')
-  return { files: new Map(), calls: [], platform: 'android', read: { steps: true, sleep: true, restingHeartRate: true }, raw: { steps: [], sleep: [], rhr: [] }, fail: null }
+  return { files: new Map(), calls: [], platform: 'android', read: { steps: true, sleep: true, restingHeartRate: true, heartRate: true }, raw: { steps: [], sleep: [], rhr: [] }, fail: null }
 })
 
 vi.mock('@capacitor/filesystem', () => ({
@@ -46,7 +46,7 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(NOW)
   vi.resetModules()
-  h.files.clear(); h.calls = []; h.platform = 'android'; h.read = { steps: true, sleep: true, restingHeartRate: true }; h.fail = null
+  h.files.clear(); h.calls = []; h.platform = 'android'; h.read = { steps: true, sleep: true, restingHeartRate: true, heartRate: true }; h.fail = null
   h.raw = {
     steps: [[at('2026-10-15', 8), at('2026-10-15', 9), 4200, 0], [at('2026-10-14', 8), at('2026-10-14', 20), 9100, 0]],
     sleep: [{ s: at('2026-10-14', 23), e: at('2026-10-15', 7), o: 0, st: [] }],
@@ -60,12 +60,19 @@ describe('daily numbers', () => {
   it('asks for the three permissions, then keeps one entry per day in the health file', async () => {
     const r = await hs.enableRead('daily', getState)
     expect(r.ok).toBe(true)
-    expect(h.calls[0]).toEqual(['request', { read: ['steps', 'sleep', 'restingHeartRate'], write: [] }])
+    expect(h.calls[0]).toEqual(['request', { read: ['steps', 'sleep', 'restingHeartRate', 'heartRate'], write: [] }])
     expect(reads()).toHaveLength(1)
     expect(file().daily).toEqual({
       '2026-10-15': { steps: 4200, sleep: 480, rhr: 59 },
       '2026-10-14': { steps: 9100 },
     })
+  })
+
+  it('estimates the resting heart rate from the readings when no app saves one', async () => {
+    h.raw.rhr = []
+    h.raw.hr = Array.from({ length: 30 }, (_, i) => [at('2026-10-15', 1) + i * 10 * 60000, 54 + (i % 30), 0])
+    await hs.enableRead('daily', getState)
+    expect(file().daily['2026-10-15']).toMatchObject({ rhr: 55, rhrEst: true })
   })
 
   it('first reads 30 days back, then from the day before the newest kept', async () => {
@@ -84,7 +91,7 @@ describe('daily numbers', () => {
   })
 
   it('stays off when none of the permissions was granted', async () => {
-    h.read = { steps: false, sleep: false, restingHeartRate: false }
+    h.read = { steps: false, sleep: false, restingHeartRate: false, heartRate: false }
     const r = await hs.enableRead('daily', getState)
     expect(r).toMatchObject({ ok: false, reason: 'denied' })
     expect(reads()).toHaveLength(0)

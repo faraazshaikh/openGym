@@ -72,7 +72,7 @@ import org.json.JSONObject;
  *   await HC.requestPermissions({ read: ['heartRate'], write: [] });  // { granted, read: { heartRate, weight } }
  *   await HC.readHeartRate({ from, to });   // { samples: [[ms, bpm]], origins: [package] }
  *   await HC.readWeights({ since });        // { records: [{ t, kg, id, origin, clientId }] }
- *   await HC.readDaily({ since });          // { origins, steps, sleep, rhr } (steps, sleep, resting heart rate)
+ *   await HC.readDaily({ since });          // { origins, steps, sleep, rhr, hr } (steps, sleep, resting heart rate, heart rate)
  * Foreground only: no READ_HEALTH_DATA_IN_BACKGROUND. Without READ_HEALTH_DATA_HISTORY Health
  * Connect gives 30 days back from the first grant, plenty for the workout just done; weigh-ins
  * ask for it too (read: ['weight', 'history']) where Health Connect has the feature, which
@@ -344,7 +344,7 @@ public class HealthConnectPlugin extends Plugin {
                 Set<String> got = granted();
                 TimeRangeFilter range = TimeRangeFilter.after(Instant.ofEpochMilli(since));
                 List<String> origins = new ArrayList<>();
-                JSArray steps = new JSArray(), sleep = new JSArray(), rhr = new JSArray();
+                JSArray steps = new JSArray(), sleep = new JSArray(), rhr = new JSArray(), hr = new JSArray();
                 if (got.contains(READ_STEPS)) {
                     for (StepsRecord r : read(StepsRecord.class, range)) {
                         steps.put(new JSArray().put(r.getStartTime().toEpochMilli()).put(r.getEndTime().toEpochMilli())
@@ -371,8 +371,24 @@ public class HealthConnectPlugin extends Plugin {
                                 .put(HealthRead.originIndex(origins, r.getMetadata().getDataOrigin().getPackageName())));
                     }
                 }
+                // The heart rate readings of the days, for a resting value where no app saves one
+                // (lib/health-daily.js estimates it): [time, bpm, origin], plausible values only.
+                if (got.contains(READ_HEART_RATE)) {
+                    int count = 0;
+                    for (HeartRateRecord r : read(HeartRateRecord.class, range)) {
+                        int origin = HealthRead.originIndex(origins, r.getMetadata().getDataOrigin().getPackageName());
+                        for (HeartRateRecord.Sample s : r.getSamples()) {
+                            long bpm = s.getBeatsPerMinute();
+                            if (bpm < HealthRead.BPM_MIN || bpm > HealthRead.BPM_MAX) continue;
+                            hr.put(new JSArray().put(s.getTime().toEpochMilli()).put(bpm).put(origin));
+                            if (++count >= HealthRead.MAX_SAMPLES) break;
+                        }
+                        if (count >= HealthRead.MAX_SAMPLES) break;
+                    }
+                }
                 JSObject out = new JSObject();
                 out.put("origins", new JSArray(origins));
+                out.put("hr", hr);
                 out.put("steps", steps);
                 out.put("sleep", sleep);
                 out.put("rhr", rhr);

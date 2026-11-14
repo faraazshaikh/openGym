@@ -40,7 +40,7 @@ export default function DailyHealthStrip({ daily, y, mo }) {
     <div className="dh-strip" role="group" aria-label={t('Daily average')}>
       {cell('steps', 'var(--green)', m.steps != null ? fmtNum(m.steps) : null, t('Steps'))}
       {cell('moon', 'var(--indigo)', m.sleep != null ? fmtDur(m.sleep * 60000) : null, t('Sleep'))}
-      {cell('heart', 'var(--red)', m.rhr != null ? m.rhr + ' bpm' : null, t('Resting heart rate'))}
+      {cell('heart', 'var(--red)', m.rhr != null ? (m.rhrEst ? '~' : '') + m.rhr + ' bpm' : null, t('Resting heart rate'))}
       <div className="dh-cap">{t('Daily average')}</div>
     </div>
   )
