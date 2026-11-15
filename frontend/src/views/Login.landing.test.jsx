@@ -114,3 +114,15 @@ describe('the app download on the landing page', () => {
     } finally { ua.mockRestore() }
   })
 })
+
+describe('an invite link', () => {
+  it('opens the landing page with the code filled in and the app download showing', () => {
+    window.history.pushState({}, '', '/?invite=ab12cd34')
+    try {
+      mocks.config = { invite_only: true }
+      const page = mount(<Login />)
+      expect(page.querySelector('input[placeholder="Invite code"]').value).toBe('AB12CD34')
+      expect(page.textContent).toContain('Get the Android app')
+    } finally { window.history.pushState({}, '', '/') }
+  })
+})

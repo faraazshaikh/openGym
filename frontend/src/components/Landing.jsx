@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useUI } from '../store/useUI.js'
 import { Button } from './ui.jsx'
 import { APP_DOWNLOAD, RELEASES_PAGE } from '../lib/update.js'
+import { inviteFromSearch } from '../lib/invite-message.js'
 
 // The page a signed-out visitor sees on an invite-only server: what Fitrix is, a box for the
 // invite code, and a small way back in for people who already have a profile.
@@ -24,7 +25,8 @@ export const isIOS = () => typeof navigator !== 'undefined'
   && (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
 export default function Landing({ head, tagline, onContinue, signin }) {
-  const [code, setCode] = useState('')
+  // An invite link (/?invite=CODE) arrives with the code filled in, and the app download showing.
+  const [code, setCode] = useState(() => inviteFromSearch(typeof location !== 'undefined' ? location.search : ''))
   const go = ev => {
     ev?.preventDefault()
     const c = code.trim()

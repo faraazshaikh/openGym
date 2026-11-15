@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
-import { api } from '../lib/api.js'
+import { api, remoteAuth, appBase } from '../lib/api.js'
+import { MOBILE } from '../lib/mobile.js'
+import { copyText } from '../lib/clipboard.js'
+import { inviteMessage } from '../lib/invite-message.js'
 import { fmtDate, fmtNum, fmtVol, fmtDur } from '../lib/format.js'
 import { auditCat, auditLine, fmtWhen } from '../lib/audit.js'
 import { workoutVolume, setsDone } from '../lib/history.js'
@@ -243,7 +246,7 @@ function NewInviteSheet({ close, done }) {
   const make = () => {
     setBusy(true)
     api('/api/admin/invites/new', { method: 'POST', body: JSON.stringify({ name: name.trim(), email: email.trim(), months }) })
-      .then(({ invite }) => { navigator.clipboard?.writeText(invite.code).catch(() => {}); done(); close(); openCodeSheet(invite) })
+      .then(({ invite }) => { done(); close(); openCodeSheet(invite) })
       .catch(e => { setBusy(false); toast(e.message) })
   }
   const openCodeSheet = invite => useUI.getState().openSheet(c => <InviteCreatedSheet invite={invite} close={c} />, { locked: true })
@@ -279,15 +282,42 @@ function NewInviteSheet({ close, done }) {
   </>
 }
 
+// The server's own address, as the person will type it: the paired server in the phone app, this
+// site in a browser.
+const serverBase = () => (remoteAuth()?.base || appBase()).replace(/\/+$/, '')
+
+// The phone's share sheet (WhatsApp, SMS, mail...) in the app, the browser's where it has one,
+// else the clipboard.
+async function shareText(text, title) {
+  const dismissed = e => e?.name === 'AbortError' || /cancel/i.test(String(e?.message || e?.errorMessage || ''))
+  if (MOBILE) {
+    try { const { Share } = await import('@capacitor/share'); await Share.share({ title, text, dialogTitle: title }); return true } catch (e) { if (dismissed(e)) return true }
+  } else if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try { await navigator.share({ title, text }); return true } catch (e) { if (dismissed(e)) return true }
+  }
+  return false
+}
+
+// One invite: the code, and what to send the person with it. The message holds the link that fills
+// the code in on the sign-up page, where the app download is.
 function InviteCreatedSheet({ invite, close }) {
   const toast = useUI(s => s.toast)
-  const copy = () => { navigator.clipboard?.writeText(invite.code).catch(() => {}); toast('Copied') }
+  const message = inviteMessage({ base: serverBase(), invite })
+  const copy = async text => toast((await copyText(text)) ? 'Copied' : 'Could not copy')
+  const share = async () => { if (!(await shareText(message, 'Fitrix invite'))) copy(message) }
   return <>
     <h3>Invite for {invite.name || 'them'}</h3>
-    <div className="adm-lead">Send {invite.name || 'them'} this code. On the sign-up page they enter it, and sign up with <b>{invite.email}</b>. It works once, for {invite.months ? monthsText(invite.months) + ' from the day they sign up' : 'as long as you keep the account (indefinite)'}. The code is copied.</div>
-    <button className="adm-code" style={{ fontSize: 'var(--fs-title2)', width: '100%', padding: '14px 0' }} onClick={copy} aria-label="copy code">{invite.code}</button>
-    <div style={{ height: 12 }} />
-    <Button variant="primary" onClick={close}>Done</Button>
+    <div className="adm-lead">Send {invite.name || 'them'} the message below. Its link opens the sign-up page with the code filled in and the app to download. They sign up with <b>{invite.email || 'any name'}</b>. It works once, for {invite.months ? monthsText(invite.months) + ' from the day they sign up' : 'as long as you keep the account (indefinite)'}.</div>
+    <button className="adm-code" style={{ fontSize: 'var(--fs-title2)', width: '100%', padding: '14px 0' }} onClick={() => copy(invite.code)} aria-label="copy code">{invite.code}</button>
+    <pre className="adm-hint" style={{ whiteSpace: 'pre-wrap', margin: '12px 0', fontFamily: 'inherit', userSelect: 'text' }}>{message}</pre>
+    <Button variant="primary" onClick={share}>Share invite</Button>
+    <div style={{ height: 8 }} />
+    <div className="row" style={{ gap: 8 }}>
+      <button className="btn" style={{ flex: 1 }} onClick={() => copy(message)}>Copy message</button>
+      <button className="btn" style={{ flex: 1 }} onClick={() => copy(invite.code)}>Copy code</button>
+    </div>
+    <div style={{ height: 8 }} />
+    <Button variant="ghost" onClick={close}>Done</Button>
   </>
 }
 
@@ -313,10 +343,10 @@ function InvitesCard({ invites, reload, inviteOnly }) {
         : 'Sign-up is open, so codes are optional here. They only record who invited whom.'}
     </div>
     {open.length ? <>
-      <div className="adm-group-t">Unused · tap to copy</div>
+      <div className="adm-group-t">Unused · tap to share</div>
       {open.map(i => <div key={i.code} className="row between" style={{ padding: '6px 0', borderBottom: 'var(--hair) solid var(--sep)' }}>
         <div>
-          <button className="adm-code" onClick={() => copy(i.code)} aria-label={'copy ' + i.code}>{i.code}</button>
+          <button className="adm-code" onClick={() => openSheet(close => <InviteCreatedSheet invite={i} close={close} />)} aria-label={'share ' + i.code}>{i.code}</button>
           <div className="dim" style={{ fontSize: 'var(--fs-caption2)', marginTop: 3 }}>{[i.name || i.note, i.email, monthsText(i.months)].filter(Boolean).join(' · ')}</div>
         </div>
         <div className="row" style={{ gap: 4 }}>

@@ -4,6 +4,13 @@ Newest first. Each release is a `## vX.Y.Z (YYYY-MM-DD)` section, and the releas
 GitHub and GitLab are that section, word for word. New work goes under `## Unreleased` until the
 tag. Write it for the people using the app: what changed for them, short, no em dashes.
 
+## v1.4.8 (2026-11-15)
+
+**Send an invite in one tap.** A new invite now comes with a ready message and Share invite, Copy
+message and Copy code buttons. The message holds a link to the sign-up page with the code already
+filled in and the app download showing, so the person has nothing to type. Tap any unused code in
+the list to share it again.
+
 ## v1.4.7 (2026-11-14)
 
 **A bell on Home.** The bell next to Settings shows a dot when there is something to read. Today it
